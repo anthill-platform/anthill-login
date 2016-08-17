@@ -1,0 +1,45 @@
+<html>
+<head>
+    <title>Authorize</title>
+
+	<script src="/static/js/jquery.min.js"></script>
+	<script src="/static/js/bootstrap.min.js"></script>
+
+	<script src="/static/js/authdev.js"></script>
+
+	<link rel="stylesheet" href="/static/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/static/css/login-modal.css">
+
+</head>
+<body>
+
+<div class="container" role="main">
+
+    <div class="modal-header" align="center">
+        <img class="img-circle" id="img_logo" src="/static/images/account.png">
+    </div>
+
+    <div id="div-forms">
+
+        <div class="modal-body">
+            <input id="login_username" class="form-control" type="text" placeholder="Username" required>
+            <input id="login_password" class="form-control" type="password" placeholder="Password" required>
+        </div>
+        <div class="modal-footer">
+            <div>
+                <button type="submit" id="login-button" class="btn btn-primary btn-lg btn-block">Login</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script type="text/javascript">
+    $(function()
+    {
+        auth_dev_init("{% raw callback %}");
+    });
+</script>
+
+</body>
+</html>

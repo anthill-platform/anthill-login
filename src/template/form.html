@@ -1,0 +1,90 @@
+<html>
+<head>
+    <title>Authorize</title>
+
+	<link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/font-awesome.min.css">
+	<link rel="stylesheet" href="/static/css/login-modal.css">
+
+	<script src="/static/js/jquery.min.js"></script>
+	<script src="/static/js/jquery.redirect.js"></script>
+	<script src="/static/js/authpage.js"></script>
+	<script src="/static/js/authentication.js"></script>
+
+	<script src="/static/js/bootstrap.min.js"></script>
+	<script src="/static/js/bootbox.min.js"></script>
+
+</head>
+<body>
+
+<br><br>
+
+<div id="main" class="container" role="main">
+    <div id="status"></div>
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+            {% if scopes %}
+                Sign in with such permissions:
+            {% else %}
+                Sign in with:
+            {% end %}
+        </h3>
+      </div>
+      <div class="panel-body">
+        {% if scopes %}
+            {% for i, scope in enumerate(scopes) %}
+               <span class="label label-{{ 'danger' if scope.endswith('admin') else 'default' }}">
+                   {{ scope }}
+               </span>
+
+               {% if i < len(scopes) - 1 %},{% end %}
+            {% end %}
+            <br><br>
+        {% end %}
+
+        <div style="text-align: center;">
+
+            {% if "google" in client_ids %}
+            <button type="button" id="signinGoogleButton"
+                    class="btn btn-lg btn-primary">Sign in with Google</button>
+            {% end %}
+
+            {% if "facebook" in client_ids %}
+            <button type="button" id="signinFacebookButton"
+                    class="btn btn-lg btn-primary">Sign in with Facebook</button>
+            {% end %}
+
+            <button type="button" id="signinDevButton"
+                    class="btn btn-lg btn-primary">Developer account</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: center;">
+        <div id="result"></div>
+    </div>
+</div>
+
+{% import json %}
+
+<script>
+
+    var clients = {% raw json.dumps(client_ids) %};
+
+    authform_init(
+        clients,
+        "{{ redirect_to }}",
+        "{{ gamespace }}",
+        "{{ ",".join(scopes) }}",
+        "{{ should_have }}",
+        "{{ attach_to or '' }}",
+        "{{ auth_as or '' }}"
+    );
+
+</script>
+
+<div id="auth-root"></div>
+
+</body>
+</html>
