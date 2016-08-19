@@ -491,10 +491,10 @@ class GamespaceController(a.AdminController):
         ]
 
     def scopes_read(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
     def scopes_write(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
     @coroutine
     def update(self, title, scopes):
@@ -638,10 +638,10 @@ class GamespacesController(a.AdminController):
         ]
 
     def scopes_read(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
     def scopes_write(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
 
 class InvalidateAccountAllController(a.AdminController):
@@ -863,10 +863,10 @@ class NewGamespaceController(a.AdminController):
         ]
 
     def scopes_read(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
     def scopes_write(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
 
 class NewGamespaceNameController(a.AdminController):
@@ -923,10 +923,10 @@ class NewGamespaceNameController(a.AdminController):
         ]
 
     def scopes_read(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
     def scopes_write(self):
-        return ["auth_admin"]
+        return ["auth_gamespace_admin"]
 
 
 class NewKeyController(a.AdminController):

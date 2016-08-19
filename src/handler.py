@@ -12,7 +12,7 @@ import common.sign
 
 from common.internal import InternalError
 from common.access import scoped, internal
-from common.handler import AuthenticatedHandler
+from common.handler import AuthenticatedHandler, JsonHandler
 
 from model.access import ScopesCorrupterError, NoScopesFound
 from model.account import AuthenticationError
@@ -25,7 +25,7 @@ from model.password import UserExists, BadNameFormat
 from social import SocialAuthenticator
 
 
-class AttachAccountHandler(RequestHandler):
+class AttachAccountHandler(JsonHandler):
     """
     Attaches a credential to an account.
     """
@@ -46,7 +46,7 @@ class AttachAccountHandler(RequestHandler):
             result = yield accounts_data.attach_account(arguments)
 
             if self.get_argument("full", False):
-                self.write(ujson.dumps(result))
+                self.dumps(result)
             else:
                 self.write(result["token"])
 
@@ -64,10 +64,10 @@ class AttachAccountHandler(RequestHandler):
 
     def result(self, code, obj):
         self.set_status(code, "result")
-        self.write(ujson.dumps(obj))
+        self.dumps(obj)
 
 
-class AuthorizeHandler(RequestHandler):
+class AuthorizeHandler(JsonHandler):
     """
     Authorizes the user.
     """
@@ -89,7 +89,7 @@ class AuthorizeHandler(RequestHandler):
             result = yield accounts_data.authorize(arguments)
 
             if self.get_argument("full", False):
-                self.write(ujson.dumps(result))
+                self.dumps(result)
             else:
                 self.write(result["token"])
 
@@ -103,7 +103,7 @@ class AuthorizeHandler(RequestHandler):
 
     def result(self, code, obj):
         self.set_status(code, "result")
-        self.write(ujson.dumps(obj))
+        self.dumps(obj)
 
 
 class AuthAuthenticationHandler(AuthenticatedHandler):
@@ -222,7 +222,7 @@ class ExtendHandler(AuthenticatedHandler):
         except TokensError as e:
             raise HTTPError(403, e.message)
 
-        self.write({
+        self.dumps({
             "token": new_data["key"],
             "expires_in": new_data["expires"]
         })
@@ -466,7 +466,7 @@ class ResolveConflictHandler(AuthenticatedHandler):
             result = yield accounts_data.resolve_conflict(self.token, resolve_method, arguments)
 
             if self.get_argument("full", False):
-                self.write(ujson.dumps(result))
+                self.dumps(result)
             else:
                 self.write(result["token"])
 
@@ -480,7 +480,7 @@ class ResolveConflictHandler(AuthenticatedHandler):
 
     def result(self, code, obj):
         self.set_status(code, "result")
-        self.write(ujson.dumps(obj))
+        self.dumps(obj)
 
 
 class ValidateHandler(RequestHandler):

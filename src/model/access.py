@@ -27,7 +27,7 @@ class AccessModel(Model):
     def setup_table_account_access(self):
         yield self.set_account_access(1, 1, "admin,auth_admin,discovery_admin,profile_admin,social_admin,"
                                             "config_admin,store_admin,event_admin,game_admin,dlc_admin,"
-                                            "message_admin,env_envs_admin,env_admin")
+                                            "message_admin,env_envs_admin,env_admin,leaderboard_admin")
 
     def get_setup_db(self):
         return self.db
