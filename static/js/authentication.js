@@ -416,7 +416,7 @@ function authenticate(credential, data)
             {
                 var resolve_token = response["resolve_token"];
 
-                $('#auth-root').load(OPTS.location + "/js/conflict.in.html", function()
+                $('#auth-root').load(OPTS.location + "/static/js/conflict.in.html", function()
                 {
                     conflict(response).fail(function(reason, data, responseText)
                     {

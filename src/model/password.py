@@ -19,13 +19,13 @@ class PasswordAdapter(object):
 class PasswordsModel(Model):
     NAME_PATTERN = re.compile("^([a-zA-Z0-9_-]+)$")
     ALGORITHMS = {
-        "2SHA256": lambda password: hashlib.sha256(hashlib.sha256(password).hexdigest()).hexdigest(),
-        "SHA256": lambda password: hashlib.sha256(password).hexdigest()
+        "2SHA256": lambda password, salt: hashlib.sha256(hashlib.sha256(password + salt).hexdigest()).hexdigest(),
+        "SHA256": lambda password, salt: hashlib.sha256(password).hexdigest()
     }
     DEFAULT_ALGORITHM = "2SHA256"
 
     def __generate_password__(self, algorithm, password):
-        return PasswordsModel.ALGORITHMS[algorithm](password + self.salt)
+        return PasswordsModel.ALGORITHMS[algorithm](password, self.salt)
 
     def __init__(self, application, db):
         self.db = db

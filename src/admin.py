@@ -252,8 +252,7 @@ class EditAuthoritativeController(a.AdminController):
             user = yield passwords.get(credential)
         except BadNameFormat:
             raise a.ActionError("Bad user format")
-
-        if user is None:
+        except UserNotFound:
             raise a.ActionError("No such user")
 
         result = {
