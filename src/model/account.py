@@ -19,6 +19,8 @@ from credential import CredentialNotFound
 from gamespace import GamespaceNotFound
 from access import NoScopesFound
 
+import ujson
+
 
 class AccountModel(Model):
     """
@@ -622,6 +624,7 @@ class AccountModel(Model):
 
         access_data = self.application.access
         gamespaces_data = self.application.gamespaces
+        accounts_data = self.application.accounts
         cred_types = self.application.credentials.credential_types
 
         cred_type, username = common.access.parse_account(credential)
@@ -700,6 +703,27 @@ class AccountModel(Model):
 
         cross = set(requested_scopes) & set(user_scopes)
         allowed_scopes = list(cross)
+
+        # update account info
+
+        account_info = args.get("info")
+        if account_info:
+
+            try:
+                account_info = ujson.loads(account_info)
+            except (KeyError, ValueError):
+                raise AuthenticationError(
+                    400,
+                    "bad_account_info",
+                    info="The field 'info' is corrupted.")
+
+            if not isinstance(account_info, dict):
+                raise AuthenticationError(
+                    400,
+                    "bad_account_info",
+                    info="The field 'info' should be a JSON dictionary.")
+
+            yield accounts_data.update_account_info(account, account_info)
 
         # FINAL STEP: access token sign
 
@@ -793,6 +817,25 @@ class AccountModel(Model):
             raise Return(account)
 
     @coroutine
+    def update_account_info(self, account, account_info, db=None):
+        """
+        Updates account information
+        """
+
+        if not isinstance(account_info, dict):
+            raise AccountError("Should be a dict")
+
+        try:
+            yield (db or self.db).execute(
+                """
+                    UPDATE `accounts`
+                    SET `account_info`=JSON_MERGE(`account_info`, %s)
+                    WHERE `account_id`=%s;
+                """, ujson.dumps(account_info), account)
+        except DatabaseError as e:
+            raise AccountError("Failed to update account info: " + e.args[1])
+
+    @coroutine
     def create_account(self, db=None):
         """
         Creates a new account in the system.
@@ -804,8 +847,9 @@ class AccountModel(Model):
             result = yield (db or self.db).insert(
                 """
                     INSERT INTO `accounts`
-                    VALUES ();
-                """)
+                    (`account_info`)
+                    VALUES (%s);
+                """, ujson.dumps({}))
         except DatabaseError as e:
             raise AccountError("Failed to create account: " + e.args[1])
 
