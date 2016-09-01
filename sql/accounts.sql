@@ -3,4 +3,4 @@ CREATE TABLE `accounts` (
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `account_info` json NOT NULL,
   PRIMARY KEY (`account_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -26,10 +26,10 @@ import options as _opts
 
 
 class AuthServer(common.server.Server):
-    def __init__(self):
+    def __init__(self, db=None):
         super(AuthServer, self).__init__()
 
-        self.db = common.database.Database(
+        self.db = db or common.database.Database(
             host=options.db_host,
             database=options.db_name,
             user=options.db_username,

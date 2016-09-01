@@ -11,6 +11,7 @@ from common.internal import Internal, InternalError
 from common.access import AccessToken
 from common.database import DatabaseError
 from common.model import Model
+import common
 
 import authenticator
 
@@ -624,7 +625,6 @@ class AccountModel(Model):
 
         access_data = self.application.access
         gamespaces_data = self.application.gamespaces
-        accounts_data = self.application.accounts
         cred_types = self.application.credentials.credential_types
 
         cred_type, username = common.access.parse_account(credential)
@@ -723,7 +723,7 @@ class AccountModel(Model):
                     "bad_account_info",
                     info="The field 'info' should be a JSON dictionary.")
 
-            yield accounts_data.update_account_info(account, account_info)
+            yield self.update_account_info(account, account_info)
 
         # FINAL STEP: access token sign
 
@@ -818,6 +818,24 @@ class AccountModel(Model):
             raise Return(account)
 
     @coroutine
+    def get_account_info(self, account, db=None):
+        """
+        Returns account information
+        """
+
+        try:
+            info = yield (db or self.db).get(
+                """
+                    SELECT `account_info`
+                    FROM `accounts`
+                    WHERE `account_id`=%s;
+                """, account)
+        except DatabaseError as e:
+            raise AccountError("Failed to get account info: " + e.args[1])
+        else:
+            raise Return(info["account_info"])
+
+    @coroutine
     def update_account_info(self, account, account_info, db=None):
         """
         Updates account information
@@ -826,13 +844,16 @@ class AccountModel(Model):
         if not isinstance(account_info, dict):
             raise AccountError("Should be a dict")
 
+        value = yield self.get_account_info(account, db=db)
+        common.update(value, account_info)
+
         try:
             yield (db or self.db).execute(
                 """
                     UPDATE `accounts`
-                    SET `account_info`=JSON_MERGE(`account_info`, %s)
+                    SET `account_info`=%s
                     WHERE `account_id`=%s;
-                """, ujson.dumps(account_info), account)
+                """, ujson.dumps(value), account)
         except DatabaseError as e:
             raise AccountError("Failed to update account info: " + e.args[1])
 
