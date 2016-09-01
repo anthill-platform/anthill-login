@@ -776,6 +776,7 @@ class AccountModel(Model):
 
         raise Return({
             "token": token,
+            "account": account,
             "credential": credential
         })
 
