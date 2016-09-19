@@ -440,6 +440,17 @@ class InternalHandler(object):
             raise InternalError(
                 403, "Token is not valid.")
 
+    @coroutine
+    def authenticate(self, **kwargs):
+        try:
+            token = yield self.application.accounts.authorize(kwargs)
+        except KeyError:
+            raise InternalError(400, "Missing fields")
+        except AuthenticationError as e:
+            raise InternalError(e.code, ujson.dumps(e.obj))
+        else:
+            raise Return(token)
+
 
 class ResolveConflictHandler(AuthenticatedHandler):
     """

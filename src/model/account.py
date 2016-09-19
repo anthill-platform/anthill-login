@@ -478,7 +478,13 @@ class AccountModel(Model):
         try:
             cred_type = args["credential"]
             requested_scopes = common.access.parse_scopes(args["scopes"])
-            gamespace_name = args["gamespace"]
+
+            gamespace_id = args.get("gamespace_id")
+
+            if not gamespace_id:
+                gamespace_name = args["gamespace"]
+            else:
+                gamespace_name = ""
 
         except KeyError:
             raise AuthenticationError(
@@ -513,16 +519,18 @@ class AccountModel(Model):
             attach_to = token
 
         with (yield self.db.acquire()) as db:
-            try:
-                gamespace_id = yield self.application.gamespaces.find_gamespace(
-                    gamespace_name,
-                    db=db)
 
-            except GamespaceNotFound:
-                raise AuthenticationError(
-                    404,
-                    "no_such_gamespace",
-                    info="Gamespace '{0}' was not found.".format(gamespace_name))
+            if not gamespace_id:
+                try:
+                    gamespace_id = yield self.application.gamespaces.find_gamespace(
+                        gamespace_name,
+                        db=db)
+
+                except GamespaceNotFound:
+                    raise AuthenticationError(
+                        404,
+                        "no_such_gamespace",
+                        info="Gamespace '{0}' was not found.".format(gamespace_name))
 
             try:
                 result = yield credential_authorizer.authorize(
@@ -614,6 +622,11 @@ class AccountModel(Model):
                 token alive, he might authorize in different system. For example, a game and a web site could
                 live in different systems 'def' and 'www'.
 
+            'unique' - if value is 'false', it would be possible to have several valid access tokens pointing to the
+                same account. In fact, that kind of access token would be impossible to invalidate since there is no
+                record for it.  A special access scope 'auth_non_unique' is required to proceed such
+                authentication.
+
             'should_have' - a comma-separated list of scopes user should definitely have, or 403.
                 '*' means he fine with everything he gets.
 
@@ -701,6 +714,18 @@ class AccountModel(Model):
                     info="User '{0}' has no scope '{1}' asked.".format(credential, scope),
                     credential=credential)
 
+        if args.get("unique", "true") == "false":
+            if "auth_non_unique" not in user_scopes:
+                raise AuthenticationError(
+                    403,
+                    "non_unique_token_restricted",
+                    info="User '{0}' has no access to disable unique "
+                         "tokens (scope 'auth_non_unique' is required).".format(credential),
+                    credential=credential)
+            unique = False
+        else:
+            unique = True
+
         cross = set(requested_scopes) & set(user_scopes)
         allowed_scopes = list(cross)
 
@@ -729,9 +754,12 @@ class AccountModel(Model):
 
         additional_containers = {
             AccessToken.ACCOUNT: account,
-            AccessToken.GAMESPACE: gamespace_id,
-            AccessToken.ISSUER: "login"
+            AccessToken.GAMESPACE: gamespace_id
         }
+
+        if unique:
+            # no 'issuer' field - nowhere to check
+            additional_containers[AccessToken.ISSUER] = "login"
 
         res = AccessTokenGen.generate(
             common.sign.TOKEN_SIGNATURE_RSA,
@@ -747,11 +775,12 @@ class AccountModel(Model):
 
         tokens = self.application.tokens
 
-        yield tokens.save_token(
-            account,
-            uuid,
-            expires,
-            name=auth_as)
+        if unique:
+            yield tokens.save_token(
+                account,
+                uuid,
+                expires,
+                name=auth_as)
 
         # if credential is 'social', store the stuff from social network (avatar, nickname) to a profile
 
