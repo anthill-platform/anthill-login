@@ -79,7 +79,7 @@ class AccessTokenModel(AccessTokenCache):
         raise Return(uuid_deleted or account_deleted)
 
     @coroutine
-    def extend(self, token, extend_token, scopes):
+    def extend(self, token, extend_with, scopes):
         """
         Extend access token rights with right of the another access token.
         """
@@ -87,27 +87,27 @@ class AccessTokenModel(AccessTokenCache):
         my_gamespace = token.get(
             common.access.AccessToken.GAMESPACE)
 
-        token_gamespace = extend_token.get(
+        extend_gamespace = extend_with.get(
             common.access.AccessToken.GAMESPACE)
 
-        if token_gamespace != my_gamespace:
+        if extend_gamespace != my_gamespace:
             raise TokensError("Tokens don't share gamespace")
 
         if scopes == "*":
-            extend_token.scopes.extend(token.scopes)
+            token.scopes.extend(extend_with.scopes)
         else:
             required_scopes = common.access.parse_scopes(scopes)
-            mix = list(set(token.scopes) & set(required_scopes))
-            extend_token.scopes.extend(mix)
+            mix = list(set(extend_with.scopes) & set(required_scopes))
+            token.scopes.extend(mix)
 
         new_data = AccessTokenGen.refresh(
             common.sign.TOKEN_SIGNATURE_RSA,
-            extend_token,
+            token,
             force=True)
 
         yield self.save_token(
-            extend_token.account,
-            extend_token.uuid,
+            token.account,
+            token.uuid,
             new_data["expires"],
             invalidate=False)
 
