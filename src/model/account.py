@@ -753,8 +753,8 @@ class AccountModel(Model):
         # FINAL STEP: access token sign
 
         additional_containers = {
-            AccessToken.ACCOUNT: account,
-            AccessToken.GAMESPACE: gamespace_id
+            AccessToken.ACCOUNT: str(account),
+            AccessToken.GAMESPACE: str(gamespace_id)
         }
 
         if unique:
