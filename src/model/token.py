@@ -90,7 +90,7 @@ class AccessTokenModel(AccessTokenCache):
         extend_gamespace = extend_with.get(
             common.access.AccessToken.GAMESPACE)
 
-        if extend_gamespace != my_gamespace:
+        if str(extend_gamespace) != str(my_gamespace):
             raise TokensError("Tokens don't share gamespace")
 
         if scopes == "*":
