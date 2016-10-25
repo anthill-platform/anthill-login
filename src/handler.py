@@ -143,7 +143,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
                         "as": auth_as
                     })
                 except AuthenticationError:
-                    pass
+                    logging.error("Failed to pre-authenticate user in login page.")
 
                 else:
                     encoded_token = base64.b64encode(new_token["token"])

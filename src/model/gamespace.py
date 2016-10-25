@@ -107,7 +107,7 @@ class GamespacesModel(Model):
         if gamespace is None:
             raise GamespaceNotFound()
 
-        raise Return(gamespace["gamespace_id"])
+        raise Return(str(gamespace["gamespace_id"]))
 
     @coroutine
     def find_gamespace_info(self, gamespace_alias, db=None):
