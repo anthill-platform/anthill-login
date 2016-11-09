@@ -9,7 +9,7 @@ from tornado.gen import coroutine, Return
 from model.access import UserInvalidError, ScopesCorrupterError, NoScopesFound
 from model.password import UserExists, UserNotFound, BadNameFormat
 from model.gamespace import GamespaceNotFound, GamespaceError, NoSuchGamespaceAlias
-from model.credential import CredentialNotFound, CredentialIsNotValid
+from model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
 from model.key import KeyDataError, KeyNotFound
 
 
@@ -34,10 +34,7 @@ class AccountsController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
@@ -98,10 +95,7 @@ class AttachCredentialController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
 
@@ -120,10 +114,7 @@ class AuthoritativeController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
@@ -166,7 +157,7 @@ class EditAccountController(a.AdminController):
 
     def render(self, data):
 
-        f1 = a.form("Edit account (#" + self.context.get("account") + ")", fields={
+        f1 = a.form("Edit account (#" + str(self.context.get("account")) + ")", fields={
             "rights": a.field("Scope of access", "tags", "primary")
         }, methods={
             "update": a.method("Update", "primary")
@@ -207,10 +198,7 @@ class EditAccountController(a.AdminController):
 
         return result
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
@@ -279,10 +267,7 @@ class EditAuthoritativeController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
@@ -312,10 +297,68 @@ class EditCredentialController(a.AdminController):
             raise a.ActionError("No such credential")
         except (UserInvalidError, CredentialIsNotValid):
             raise a.ActionError("Credential format is invalid")
-        else:
-            credentials.detach(credential, account)
 
-            raise a.Redirect("account", message="Credential has been updated", account=account)
+        try:
+            credentials.detach(credential, account)
+        except CredentialError as e:
+            raise a.ActionError(e.message)
+
+        raise a.Redirect("account", message="Credential has been updated", account=account)
+
+    @coroutine
+    def migrate_credential(self, moveto):
+
+        credentials = self.application.credentials
+        credential = self.context.get("credential")
+
+        try:
+            account = yield credentials.get_account(credential)
+        except CredentialNotFound:
+            raise a.ActionError("No such credential")
+        except (UserInvalidError, CredentialIsNotValid):
+            raise a.ActionError("Credential format is invalid")
+
+        try:
+            moveto = yield credentials.get_account(moveto)
+        except CredentialNotFound:
+            raise a.ActionError("No such credential")
+        except (UserInvalidError, CredentialIsNotValid):
+            raise a.ActionError("Credential format is invalid")
+
+        try:
+            credentials.detach(credential, account)
+            credentials.attach(credential, moveto)
+        except CredentialError as e:
+            raise a.ActionError(e.message)
+
+        raise a.Redirect("account",
+                         message="Credential has been migrated",
+                         account=moveto)
+
+    @coroutine
+    def migrate_account(self, moveto):
+
+        credentials = self.application.credentials
+        credential = self.context.get("credential")
+
+        moveto = common.to_int(moveto)
+
+        try:
+            account = yield credentials.get_account(credential)
+        except CredentialNotFound:
+            raise a.ActionError("No such credential")
+        except (UserInvalidError, CredentialIsNotValid):
+            raise a.ActionError("Credential format is invalid")
+
+        try:
+            credentials.detach(credential, account)
+            credentials.attach(credential, moveto)
+        except CredentialError as e:
+            raise a.ActionError(e.message)
+
+        raise a.Redirect("account",
+                         message="Credential has been migrated",
+                         account=moveto)
 
     @coroutine
     def get(self, credential):
@@ -337,19 +380,35 @@ class EditCredentialController(a.AdminController):
 
     def render(self, data):
         return [
-            a.form("Edit credential " + self.context.get("credential"), fields={
-            }, methods={
-                "delete": a.method("Delete", "danger")
-            }, data=data),
+            a.breadcrumbs([
+                a.link("accounts", "Accounts"),
+                a.link("account", "Account @{0}".format(data["account"]),
+                       account=data["account"])
+            ], self.context.get("credential")),
+            a.form("Detach credential <b>{0}</b> from account <b>@{1}</b>".format(
+                self.context.get("credential"),
+                data["account"],
+            ), fields={}, methods={
+                "delete": a.method("Detach", "danger")
+            }, icon="exclamation-triangle", data=data),
+            a.split([
+                a.form("Move credential to another account", fields={
+                    "moveto": a.field("Account ID (for example 123)", "text", "primary", "number")
+                }, methods={
+                    "migrate_account": a.method("Migrate", "primary")
+                }, icon="plane", data=data),
+                a.form("Move credential to another account by credential", fields={
+                    "moveto": a.field("Credential (for example dev:test01)", "text", "primary", "non-empty")
+                }, methods={
+                    "migrate_credential": a.method("Migrate", "primary")
+                }, icon="plane", data=data),
+            ]),
             a.links("Navigate", [
                 a.link("account", "Go back", account=data["account"])
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
 
@@ -393,10 +452,7 @@ class EditKeyController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
@@ -489,10 +545,7 @@ class GamespaceController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_gamespace_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_gamespace_admin"]
 
     @coroutine
@@ -587,10 +640,7 @@ class GamespaceNameController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
@@ -636,10 +686,7 @@ class GamespacesController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_gamespace_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_gamespace_admin"]
 
 
@@ -653,12 +700,8 @@ class InvalidateAccountAllController(a.AdminController):
 
         raise a.ActionError("Unknown account")
 
-    def scopes_read(self):
+    def access_scopes(self):
         return ["auth_admin"]
-
-    def scopes_write(self):
-        return ["auth_admin"]
-
 
 class InvalidateAccountUUIDController(a.AdminController):
     @coroutine
@@ -670,10 +713,7 @@ class InvalidateAccountUUIDController(a.AdminController):
 
         raise a.ActionError("Unknown UUID")
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
 
@@ -732,10 +772,7 @@ class KeyController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
@@ -777,10 +814,7 @@ class KeysController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
 
@@ -815,10 +849,7 @@ class NewAuthoritativeController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
 
@@ -861,10 +892,7 @@ class NewGamespaceController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_gamespace_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_gamespace_admin"]
 
 
@@ -921,10 +949,7 @@ class NewGamespaceNameController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_gamespace_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_gamespace_admin"]
 
 
@@ -971,10 +996,7 @@ class NewKeyController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
 
 
@@ -989,8 +1011,5 @@ class RootAdminController(a.AdminController):
             ])
         ]
 
-    def scopes_read(self):
-        return ["auth_admin"]
-
-    def scopes_write(self):
+    def access_scopes(self):
         return ["auth_admin"]
