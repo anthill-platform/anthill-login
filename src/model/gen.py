@@ -64,7 +64,8 @@ class AccessTokenGen(AccessToken):
         return {
             "expires": for_time,
             "key": access_token,
-            "uuid": uuid
+            "uuid": uuid,
+            "scopes": requested_scopes
         }
 
     @staticmethod

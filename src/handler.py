@@ -267,7 +267,8 @@ class InternalHandler(object):
 
         raise Return({
             "access_token": new_token_string,
-            "expires_in": new_data["expires"]
+            "expires_in": new_data["expires"],
+            "scopes": new_data["scopes"]
         })
 
     @coroutine

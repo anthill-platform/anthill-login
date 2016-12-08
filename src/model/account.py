@@ -770,6 +770,7 @@ class AccountModel(Model):
         token = res["key"]
         uuid = res["uuid"]
         expires = res["expires"]
+        scopes = res["scopes"]
 
         # store the token in key/value storage
 
@@ -806,7 +807,8 @@ class AccountModel(Model):
         raise Return({
             "token": token,
             "account": account,
-            "credential": credential
+            "credential": credential,
+            "scopes": scopes
         })
 
     @coroutine
