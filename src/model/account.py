@@ -546,7 +546,7 @@ class AccountModel(Model):
                     info="Failed to authorize with such username/password",
                     error=e.code)
 
-            if result.response is not None:
+            if result.response is not None and result.response.import_social:
                 yield self.__import_social_connections__(
                     gamespace_id,
                     result.credential,
