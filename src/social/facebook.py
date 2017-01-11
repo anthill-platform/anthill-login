@@ -16,7 +16,7 @@ from common.social import APIError
 class FacebookAuthenticator(SocialAuthenticator, FacebookAPI):
     def __init__(self, application):
         SocialAuthenticator.__init__(self, application, "facebook")
-        FacebookAPI.__init__(self)
+        FacebookAPI.__init__(self, None)
 
     @coroutine
     def authorize(self, gamespace, args, db=None):
@@ -40,6 +40,3 @@ class FacebookAuthenticator(SocialAuthenticator, FacebookAPI):
 
     def social_profile(self):
         return True
-
-    def new_private_key(self, data=None):
-        return FacebookPrivateKey(data)

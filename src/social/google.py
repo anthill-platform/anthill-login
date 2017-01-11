@@ -15,7 +15,7 @@ from common.social.google import GoogleAPI, GooglePrivateKey
 class GoogleAuthenticator(SocialAuthenticator, GoogleAPI):
     def __init__(self, application):
         SocialAuthenticator.__init__(self, application, "google")
-        GoogleAPI.__init__(self)
+        GoogleAPI.__init__(self, None)
 
     @coroutine
     def authorize(self, gamespace, args, db=None):
@@ -38,6 +38,3 @@ class GoogleAuthenticator(SocialAuthenticator, GoogleAPI):
 
     def social_profile(self):
         return True
-
-    def new_private_key(self, data):
-        return GooglePrivateKey(data)

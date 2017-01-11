@@ -15,7 +15,7 @@ from common.social.steam import SteamAPI, SteamPrivateKey
 class SteamAuthenticator(SocialAuthenticator, SteamAPI):
     def __init__(self, application):
         SocialAuthenticator.__init__(self, application, "steam")
-        SteamAPI.__init__(self)
+        SteamAPI.__init__(self, None)
 
     @coroutine
     def authorize(self, gamespace, args, db=None):
@@ -39,6 +39,3 @@ class SteamAuthenticator(SocialAuthenticator, SteamAPI):
 
     def social_profile(self):
         return True
-
-    def new_private_key(self, data):
-        return SteamPrivateKey(data)

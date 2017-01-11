@@ -12,14 +12,8 @@ class SocialAuthenticator(authenticator.Authenticator):
 
     """
 
-    __metaclass__ = ABCMeta
-
     def __init__(self, application, credential_type):
         super(SocialAuthenticator, self).__init__(application, credential_type)
-
-    @abstractmethod
-    def new_private_key(self, data):
-        raise NotImplementedError()
 
     @coroutine
     def get_private_key(self, gamespace, data=None):
