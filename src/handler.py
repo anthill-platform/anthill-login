@@ -85,8 +85,17 @@ class AuthorizeHandler(JsonHandler):
         accounts_data = self.application.accounts
 
         try:
+            env = ujson.loads(self.get_argument("env", "{}"))
+        except (KeyError, ValueError):
+            raise HTTPError(400, "Corrupted env")
+
+        remote_ip = common.access.remote_ip(self.request)
+        if remote_ip:
+            env["ip_address"] = remote_ip
+
+        try:
             # proceeds the authorization
-            result = yield accounts_data.authorize(arguments)
+            result = yield accounts_data.authorize(arguments, env)
 
             if self.get_argument("full", False):
                 self.dumps(result)
@@ -126,6 +135,15 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
         attach_to = self.get_argument("attach_to", None)
 
         try:
+            env = ujson.loads(self.get_argument("env", "{}"))
+        except (KeyError, ValueError):
+            raise HTTPError(400, "Corrupted env")
+
+        remote_ip = common.access.remote_ip(self.request)
+        if remote_ip:
+            env["ip_address"] = remote_ip
+
+        try:
             gamespace_id = yield gamespaces.find_gamespace(gamespace_name)
         except GamespaceNotFound:
             raise HTTPError(404, "No such gamespace")
@@ -141,7 +159,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
                         "scopes": scopes_data,
                         "should_have": should_have,
                         "as": auth_as
-                    })
+                    }, env=env)
                 except AuthenticationError:
                     logging.error("Failed to pre-authenticate user in login page.")
 

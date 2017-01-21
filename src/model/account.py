@@ -463,7 +463,7 @@ class AccountModel(Model):
             raise Return(result)
 
     @coroutine
-    def authorize(self, args):
+    def authorize(self, args, env=None):
         """
         The method that authenticates a user.
         :param args:
@@ -473,6 +473,8 @@ class AccountModel(Model):
             'attach_to' (optional) - an access token attach to in case of merge happening
 
             Some other arguments may apply depending on the credential type. For example, 'code' for google.
+        :param env:
+            Environment variables passed back to authentication process (like user's ip address)
         """
 
         try:
@@ -601,12 +603,13 @@ class AccountModel(Model):
                 gamespace_id,
                 requested_scopes,
                 args,
+                env=env,
                 db=db)
 
             raise Return(result)
 
     @coroutine
-    def proceed_authentication(self, account, credential, gamespace_id, requested_scopes, args, db=None):
+    def proceed_authentication(self, account, credential, gamespace_id, requested_scopes, args, env, db=None):
 
         """
         The last one, final step in authorization. All conflicts are resolved, all accesses are gathered.
@@ -630,6 +633,7 @@ class AccountModel(Model):
             'should_have' - a comma-separated list of scopes user should definitely have, or 403.
                 '*' means he fine with everything he gets.
 
+        :param env: environment variables passed back to authentication process (like user's ip address)
         :param db:
 
         :return: A signed access token.
@@ -670,7 +674,8 @@ class AccountModel(Model):
                     gamespace=gamespace_id,
                     credential=cred_type,
                     username=username,
-                    account=account)
+                    account=account,
+                    env=env)
 
             except InternalError as e:
                 logging.warning("Failed to get profile_data: %s %s", e.code, e.body)
