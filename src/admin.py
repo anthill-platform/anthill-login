@@ -30,7 +30,7 @@ class AccountsController(a.AdminController):
                 }, data=data)
             ]),
             a.links("Navigate", [
-                a.link("index", "Go back")
+                a.link("index", "Go back", icon="chevron-left")
             ])
         ]
 
@@ -91,7 +91,7 @@ class AttachCredentialController(a.AdminController):
                 "attach": a.method("Attach", "primary")
             }, data=data),
             a.links("Navigate", [
-                a.link("account", "Go back", account=self.context.get("account"))
+                a.link("account", "Go back", icon="chevron-left", account=self.context.get("account"))
             ])
         ]
 
@@ -109,7 +109,7 @@ class AuthoritativeController(a.AdminController):
                 "search": a.method("Search", "primary")
             }, data=data),
             a.links("Navigate", [
-                a.link("index", "Go back"),
+                a.link("index", "Go back", icon="chevron-left"),
                 a.link("new_authoritative", "New user", "plus")
             ])
         ]
@@ -187,7 +187,7 @@ class EditAccountController(a.AdminController):
         ])
 
         lnk = a.links("Navigate", [
-            a.link("index", "Go back"),
+            a.link("index", "Go back", icon="chevron-left"),
             a.link("/profile/profile", "Edit user profile", "link text-danger",
                    account=self.context.get("account")),
             a.link("attach_credential", "Attach a credential", "plus", account=self.context.get("account"))
@@ -262,7 +262,7 @@ class EditAuthoritativeController(a.AdminController):
                 "delete": a.method("Delete credential", "danger")
             }, data=data),
             a.links("Navigate", [
-                a.link("index", "Go back"),
+                a.link("index", "Go back", icon="chevron-left"),
                 a.link("new_authoritative", "New user", "plus")
             ])
         ]
@@ -404,7 +404,7 @@ class EditCredentialController(a.AdminController):
                 }, icon="plane", data=data),
             ]),
             a.links("Navigate", [
-                a.link("account", "Go back", account=data["account"])
+                a.link("account", "Go back", icon="chevron-left", account=data["account"])
             ])
         ]
 
@@ -448,7 +448,7 @@ class EditKeyController(a.AdminController):
             }, data=data),
 
             a.links("Navigate", [
-                a.link("keys", "Go back")
+                a.link("keys", "Go back", icon="chevron-left")
             ])
         ]
 
@@ -540,7 +540,7 @@ class GamespaceController(a.AdminController):
                 "delete": a.method("Delete this gamespace", "danger", doublecheck="Yes, delete this gamespace")
             }, data=data),
             a.links("Navigate", [
-                a.link("index", "Go back"),
+                a.link("index", "Go back", icon="chevron-left"),
                 a.link("new_gamespace", "New gamespace", "plus")
             ])
         ]
@@ -635,7 +635,7 @@ class GamespaceNameController(a.AdminController):
                 "delete": a.method("Delete", "danger", order=2)
             }, data=data),
             a.links("Navigate", [
-                a.link("gamespace", "Go back", gamespace=data["gamespace"]),
+                a.link("gamespace", "Go back", icon="chevron-left", gamespace=data["gamespace"]),
                 a.link("new_gamespace_name", "New gamespace name", "plus", gamespace=data["gamespace"])
             ])
         ]
@@ -681,7 +681,7 @@ class GamespacesController(a.AdminController):
                 a.link("gamespace", g.title, "folder-o", gamespace=g.gamespace_id) for g in data["gamespaces"]
             ]),
             a.links("Navigate", [
-                a.link("index", "Go back"),
+                a.link("index", "Go back", icon="chevron-left"),
                 a.link("new_gamespace", "New gamespace", "plus")
             ])
         ]
@@ -768,7 +768,7 @@ class KeyController(a.AdminController):
             }, data=data),
 
             a.links("Navigate", [
-                a.link("keys", "Go back")
+                a.link("keys", "Go back", icon="chevron-left")
             ])
         ]
 
@@ -809,7 +809,7 @@ class KeysController(a.AdminController):
                 for key in data["keys"]
             ]),
             a.links("Navigate", [
-                a.link("index", "Go back"),
+                a.link("index", "Go back", icon="chevron-left"),
                 a.link("new_key", "Add new key", icon="plus"),
             ])
         ]
@@ -845,7 +845,7 @@ class NewAuthoritativeController(a.AdminController):
                 "create": a.method("Create", "primary")
             }, data=data),
             a.links("Navigate", [
-                a.link("index", "Go back")
+                a.link("index", "Go back", icon="chevron-left")
             ])
         ]
 
@@ -888,7 +888,7 @@ class NewGamespaceController(a.AdminController):
                 "create": a.method("Create a new gamespace", "primary")
             }, data=data),
             a.links("Navigate", [
-                a.link("gamespaces", "Go back")
+                a.link("gamespaces", "Go back", icon="chevron-left")
             ])
         ]
 
@@ -945,7 +945,7 @@ class NewGamespaceNameController(a.AdminController):
                 "create": a.method("Create a new name", "primary")
             }, data=data),
             a.links("Navigate", [
-                a.link("gamespace", "Go back", gamespace=self.context.get("gamespace"))
+                a.link("gamespace", "Go back", icon="chevron-left", gamespace=self.context.get("gamespace"))
             ])
         ]
 
@@ -992,7 +992,7 @@ class NewKeyController(a.AdminController):
             }, data=data),
 
             a.links("Navigate", [
-                a.link("keys", "Go back")
+                a.link("keys", "Go back", icon="chevron-left")
             ])
         ]
 
