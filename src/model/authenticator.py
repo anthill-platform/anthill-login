@@ -188,7 +188,7 @@ class AuthenticationResult:
 
 class DevAuthenticator(AuthoritativeAuthenticator):
     """
-    Developer account. Pretty much like anonymous buy can be create only in an admin tool.
+    Developer account. Pretty much like anonymous buy can be created only in an admin tool.
     """
     def __init__(self, application):
         super(DevAuthenticator, self).__init__(application, "dev")

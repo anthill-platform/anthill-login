@@ -63,7 +63,7 @@ class AuthServer(common.server.Server):
 
     def get_metadata(self):
         return {
-            "title": "Authorisation",
+            "title": "Login",
             "description": "Manage user accounts, credentials and access tokens",
             "icon": "key"
         }
