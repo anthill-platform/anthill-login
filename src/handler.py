@@ -40,10 +40,19 @@ class AttachAccountHandler(JsonHandler):
             for key, value in self.request.arguments.iteritems()
         }
 
+        try:
+            env = ujson.loads(self.get_argument("env", "{}"))
+        except (KeyError, ValueError):
+            raise HTTPError(400, "Corrupted env")
+
+        remote_ip = common.access.remote_ip(self.request)
+        if remote_ip:
+            env["ip_address"] = remote_ip
+
         accounts_data = self.application.accounts
 
         try:
-            result = yield accounts_data.attach_account(arguments)
+            result = yield accounts_data.attach_account(arguments, env=env)
 
             if self.get_argument("full", False):
                 self.dumps(result)
@@ -490,10 +499,19 @@ class ResolveConflictHandler(AuthenticatedHandler):
             for key, value in self.request.arguments.iteritems()
         }
 
+        try:
+            env = ujson.loads(self.get_argument("env", "{}"))
+        except (KeyError, ValueError):
+            raise HTTPError(400, "Corrupted env")
+
+        remote_ip = common.access.remote_ip(self.request)
+        if remote_ip:
+            env["ip_address"] = remote_ip
+
         accounts_data = self.application.accounts
 
         try:
-            result = yield accounts_data.resolve_conflict(self.token, resolve_method, arguments)
+            result = yield accounts_data.resolve_conflict(self.token, resolve_method, arguments, env=env)
 
             if self.get_argument("full", False):
                 self.dumps(result)

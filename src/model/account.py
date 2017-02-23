@@ -391,7 +391,7 @@ class AccountModel(Model):
             info="Conflict: More than one credentials attached to this account.")
 
     @coroutine
-    def attach_account(self, args):
+    def attach_account(self, args, env=None):
 
         """
         Attaches a credential from token <access_token> to an account from token <attach_to>
@@ -458,6 +458,7 @@ class AccountModel(Model):
                 gamespace_id,
                 requested_scopes,
                 args,
+                env=env,
                 db=db)
 
             raise Return(result)
@@ -914,7 +915,7 @@ class AccountModel(Model):
         raise Return(str(result))
 
     @coroutine
-    def resolve_conflict(self, resolve_token, method_to_resolve, args):
+    def resolve_conflict(self, resolve_token, method_to_resolve, args, env=None):
         """
         Resolves an existing conflict. Please see `__merge_accounts__` for more information.
 
@@ -1004,6 +1005,7 @@ class AccountModel(Model):
                 gamespace,
                 requested_scopes,
                 args,
+                env=env,
                 db=db)
 
         raise Return(result)
