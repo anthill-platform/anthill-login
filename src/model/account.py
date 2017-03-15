@@ -855,6 +855,20 @@ class AccountModel(Model):
             raise Return(account)
 
     @coroutine
+    def check_account_exists(self, account, db=None):
+        try:
+            exists = yield (db or self.db).get(
+                """
+                    SELECT 1
+                    FROM `accounts`
+                    WHERE `account_id`=%s;
+                """, account)
+        except DatabaseError as e:
+            raise AccountError("Failed to get account info: " + e.args[1])
+        else:
+            raise Return(bool(exists))
+
+    @coroutine
     def get_account_info(self, account, db=None):
         """
         Returns account information
@@ -870,6 +884,10 @@ class AccountModel(Model):
         except DatabaseError as e:
             raise AccountError("Failed to get account info: " + e.args[1])
         else:
+
+            if not info:
+                raise Return(None)
+
             raise Return(info["account_info"])
 
     @coroutine

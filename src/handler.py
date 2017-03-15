@@ -273,6 +273,15 @@ class InternalHandler(object):
         self.application = application
 
     @coroutine
+    def check_account_exists(self, account):
+        accounts = self.application.accounts
+        exists = yield accounts.check_account_exists(account)
+
+        raise Return({
+            "exists": exists
+        })
+
+    @coroutine
     def extend_token(self, token, extend_with, scopes="*"):
 
         token = common.access.AccessToken(token)
