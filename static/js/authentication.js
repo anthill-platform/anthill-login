@@ -5,6 +5,7 @@ function def()
 }
 
 OPTS = {};
+SOCIAL = {};
 
 function auth_with(social_name)
 {
@@ -37,7 +38,7 @@ function auth_init(location, options)
             scopes: 'public_profile,user_friends',
             init: function(data)
             {
-                this.scopes = data.scopes;
+                this.scopes = data.scopes || 'public_profile,user_friends';
 
                 var d = def();
 
@@ -48,6 +49,8 @@ function auth_init(location, options)
                         cookie: true,
                         version: 'v2.5'
                     });
+
+                    d.resolve();
                 };
 
                 $.getScript("https://connect.facebook.net/en_US/sdk.js");
@@ -83,7 +86,7 @@ function auth_init(location, options)
             scopes: 'https://www.googleapis.com/auth/plus.login',
             init: function(data)
             {
-                this.scopes = data.scopes;
+                this.scopes = data.scopes || 'https://www.googleapis.com/auth/plus.login';
 
                 var d = def();
 
@@ -94,7 +97,8 @@ function auth_init(location, options)
                     {
                         //noinspection JSUndeclaredVariable,JSUnresolvedVariable
                         auth2 = gapi.auth2.init({
-                            client_id: data.client_id
+                            client_id: data.client_id,
+                            ux_mode: data.redirect ? "redirect" : "popup"
                         });
 
                         d.resolve();
@@ -153,13 +157,17 @@ function auth_init(location, options)
     };
 
     var sns = options["sns"];
+    var defs = [];
 
     for (var sns_id in sns)
     {
         var sns_data = sns[sns_id];
         var social = SOCIAL[sns_id];
 
-        social.init(sns_data);
+        if (social)
+        {
+            defs.push(social.init(sns_data));
+        }
     }
 
     OPTS["location"] = location;
@@ -168,6 +176,8 @@ function auth_init(location, options)
     OPTS["should_have"] = options.should_have || "*";
     OPTS["attach_to"] = options.attach_to || "";
     OPTS["auth_as"] = options.auth_as || "";
+
+    return $.when.apply($, defs);
 }
 
 function resolve_conflict(method, resolve_with, resolve_token)

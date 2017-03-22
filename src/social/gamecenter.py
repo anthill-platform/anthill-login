@@ -15,10 +15,13 @@ from . import SocialAuthenticator
 from common import cached
 
 
+CREDENTIAL_TYPE = "gamecenter"
+
+
 class GameCenterAuthorizer(SocialAuthenticator):
 
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, "gamecenter")
+        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
 
     @coroutine
     def authorize(self, gamespace, args, db=None):

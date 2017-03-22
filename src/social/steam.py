@@ -12,9 +12,12 @@ from common.social import APIError
 from common.social.steam import SteamAPI, SteamPrivateKey
 
 
+CREDENTIAL_TYPE = "steam"
+
+
 class SteamAuthenticator(SocialAuthenticator, SteamAPI):
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, "steam")
+        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
         SteamAPI.__init__(self, None)
 
     @coroutine

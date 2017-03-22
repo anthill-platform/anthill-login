@@ -62,30 +62,29 @@ function authform_init(
     scopes,
     should_have,
     attach_to,
-    auth_as)
+    auth_as,
+
+    callback)
 {
     AUTHOPTS["redirect_to"] = redirect_to;
 
     $(function()
     {
-        auth_init('', {
+        var sns = {
+            "dev": {}
+        };
+
+        $.extend(sns, client_ids);
+
+        var settings = {
             "gamespace": gamespace,
             "scopes": scopes,
             "should_have": should_have,
             "attach_to": attach_to,
             "auth_as": auth_as,
-            "sns": {
-                "facebook":
-                {
-                    client_id: client_ids["facebook"],
-                    scopes: 'public_profile,user_friends'
-                },
-                "google": {
-                    client_id: client_ids["google"],
-                    scopes: 'https://www.googleapis.com/auth/plus.login'
-                },
-                "dev": {}
-            }
-        });
+            "sns": sns
+        };
+
+        auth_init('', settings).done(callback);
     });
 }

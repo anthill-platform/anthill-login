@@ -94,6 +94,9 @@ class AuthServer(common.server.Server):
     def get_handlers(self):
         return [
             (r"/logout", common.handler.LogoutHandler),
+
+            (r"/auth/facebook", h.AuthFacebookAuthenticationHandler),
+
             (r"/authform", h.AuthAuthenticationHandler),
             (r"/authdev", h.AuthorizationDevHandler),
 

@@ -12,9 +12,12 @@ from common.social import APIError
 from common.social.google import GoogleAPI, GooglePrivateKey
 
 
+CREDENTIAL_TYPE = "google"
+
+
 class GoogleAuthenticator(SocialAuthenticator, GoogleAPI):
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, "google")
+        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
         GoogleAPI.__init__(self, None)
 
     @coroutine

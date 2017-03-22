@@ -23,6 +23,7 @@ from model.token import TokensError
 from model.password import UserExists, BadNameFormat
 
 from social import SocialAuthenticator
+from social import google, facebook
 
 
 class AttachAccountHandler(JsonHandler):
@@ -204,7 +205,9 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
             app_id = yield api.get_app_id(gamespace=gamespace_id, data=data)
 
             if app_id:
-                client_ids[name] = app_id
+                client_ids[name] = {
+                    "client_id": app_id
+                }
 
         scopes = common.access.parse_scopes(scopes_data)
 
@@ -218,6 +221,38 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
             gamespace=gamespace_name,
             attach_to=attach_to,
             auth_as=auth_as)
+
+
+class AuthFacebookAuthenticationHandler(AuthenticatedHandler):
+    @coroutine
+    def get(self):
+
+        credential_types = self.application.credentials.credential_types
+        gamespaces = self.application.gamespaces
+
+        gamespace_name = self.get_argument('gamespace')
+        redirect_to = self.get_argument('redirect')
+
+        api_module = facebook
+
+        try:
+            api = credential_types[api_module.CREDENTIAL_TYPE]
+        except KeyError:
+            raise HTTPError(400, "Not supported")
+
+        try:
+            gamespace_id = yield gamespaces.find_gamespace(gamespace_name)
+        except GamespaceNotFound:
+            raise HTTPError(404, "No such gamespace")
+
+        try:
+            client_id = yield api.get_app_id(gamespace=gamespace_id)
+        except KeyNotFound:
+            raise HTTPError(500, "This auth is not configured yet")
+
+        url = api.generate_login_url(client_id, redirect_to)
+
+        self.redirect(url)
 
 
 class ExtendHandler(AuthenticatedHandler):
