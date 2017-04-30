@@ -513,9 +513,9 @@ class InternalHandler(object):
                 403, "Token is not valid.")
 
     @coroutine
-    def authenticate(self, **kwargs):
+    def authenticate(self, env=None, **kwargs):
         try:
-            token = yield self.application.accounts.authorize(kwargs)
+            token = yield self.application.accounts.authorize(kwargs, env=env)
         except KeyError:
             raise InternalError(400, "Missing fields")
         except AuthenticationError as e:
