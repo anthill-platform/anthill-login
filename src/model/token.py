@@ -25,7 +25,9 @@ class AccessTokenModel(AccessTokenCache):
 
         self.publisher = common.pubsub.RabbitMQPublisher(
             channels=[INVALIDATION_CHANNEL],
-            broker=options.pubsub)
+            broker=options.pubsub,
+            name="login-publisher",
+            channel_prefetch_count=options.internal_channel_prefetch_count)
 
         self.kv = common.keyvalue.KeyValueStorage(
             host=options.tokens_host,

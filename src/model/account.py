@@ -93,7 +93,7 @@ class AccountModel(Model):
                 info=e.body)
 
         except common.discover.DiscoveryError as e:
-            logging.warning("Failed to discover social: " + e.message)
+            logging.warning("Failed to discover social: " + str(e.code) + " " + e.message)
             raise Return(False)
 
     def __init__(self, application, db):
