@@ -4,18 +4,18 @@ from common.options import define
 # Main
 
 define("host",
-       default="http://login-dev.anthill",
+       default="http://localhost:9501",
        help="Public hostname of this service",
        type=str)
 
 define("listen",
-       default="port:10000",
+       default="unix:/usr/local/var/run/anthill/dev_login.sock",
        help="Socket to listen. Could be a port number (port:N), or a unix domain socket (unix:PATH)",
        type=str)
 
 define("name",
        default="login",
-       help="Service short name. User to discover by discovery service.",
+       help="Service short name. Used to discover by discovery service.",
        type=str)
 
 # MySQL database
@@ -26,7 +26,7 @@ define("db_host",
        help="MySQL database location")
 
 define("db_username",
-       default="anthill",
+       default="root",
        type=str,
        help="MySQL account username")
 
@@ -36,7 +36,7 @@ define("db_password",
        help="MySQL account password")
 
 define("db_name",
-       default="login",
+       default="dev_login",
        type=str,
        help="MySQL database name")
 
@@ -100,7 +100,7 @@ define("application_keys_secret",
        type=str)
 
 define("auth_key_private",
-       default="../anthill-keys/anthill.pem",
+       default="../.anthill-keys/anthill.pem",
        help="Location of private key required for access token signing (encrypted).",
        type=str)
 
