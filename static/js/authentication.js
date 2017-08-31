@@ -6,6 +6,7 @@ function def()
 
 OPTS = {};
 SOCIAL = {};
+REDIRECT_URI = document.location.origin + "/auth/callback";
 
 function auth_with(social_name)
 {
@@ -13,7 +14,8 @@ function auth_with(social_name)
 
     var social = SOCIAL[social_name];
 
-    social.auth().done(function(social, data)
+    var auth = social.auth();
+    auth.done(function(social, data)
     {
         authenticate(social, data).done(function(token)
         {
@@ -30,104 +32,121 @@ function auth_with(social_name)
     return d.promise();
 }
 
+function parse_url_arguments(location){
+    var vars = {}, hash;
+    var hashes = location.href.slice(location.href.indexOf('?') + 1).split('&');
+
+    for(var i = 0; i < hashes.length; i++)
+    {
+        hash = hashes[i].split('=');
+        vars[hash[0]] = hash[1];
+    }
+
+    return vars;
+}
+
 function auth_init(location, options)
 {
+    //noinspection JSUndeclaredVariable
     SOCIAL = {
         facebook:
         {
             scopes: 'public_profile,user_friends',
+            auth_location: 'https://www.facebook.com/dialog/oauth/',
             init: function(data)
             {
-                this.scopes = data.scopes || 'public_profile,user_friends';
-
-                var d = def();
-
-                window.fbAsyncInit = function()
-                {
-                    FB.init({
-                        appId: data.client_id,
-                        cookie: true,
-                        version: 'v2.5'
-                    });
-
-                    d.resolve();
-                };
-
-                $.getScript("https://connect.facebook.net/en_US/sdk.js");
-
-                return d.promise();
+                this.client_id = data.client_id;
             },
             auth: function()
             {
                 var d = def();
 
-                FB.login(function(response)
-                {
-                    if (response.authResponse)
-                    {
-                        var access_token = response.authResponse.accessToken;
-                        var user_id = response.authResponse.userID;
+                var redirect_uri = REDIRECT_URI + "?callback=facebook_auth";
 
-                        d.resolve("facebook", {
-                            "username": user_id,
-                            "key": access_token
-                        });
-                    }
-                },
+                window.facebook_auth = function(code)
                 {
-                    scope: this.scopes
-                });
+                    d.resolve("facebook", {
+                        "code": code,
+                        "redirect_uri": redirect_uri
+                    });
+                };
+
+                window.popup(this.auth_location + "?" + $.param({
+                    "client_id": this.client_id,
+                    "redirect_uri": redirect_uri,
+                    "scope": this.scopes,
+                    "response_type": "code",
+                    "display": "popup"
+                }), "Authenticate", 655, 430);
+
+                return d.promise();
+            }
+        },
+        vk:
+        {
+            api_version: '5.68',
+            auth_location: 'https://oauth.vk.com/authorize',
+            scopes: 'friends,offline',
+            init: function(data)
+            {
+                this.client_id = data.client_id;
+            },
+            auth: function()
+            {
+                var d = def();
+
+                var redirect_uri = REDIRECT_URI + "?callback=vk_auth";
+
+                window.vk_auth = function(code)
+                {
+                    d.resolve("vk", {
+                        "code": code,
+                        "redirect_uri": redirect_uri
+                    });
+                };
+
+                window.popup(this.auth_location + "?" + $.param({
+                    "client_id": this.client_id,
+                    "redirect_uri": redirect_uri,
+                    "display": "popup",
+                    "scope": "friends,offline",
+                    "response_type": "code",
+                    "v": this.api_version
+                }), "Authenticate", 655, 430);
 
                 return d.promise();
             }
         },
         google:
         {
-            scopes: 'https://www.googleapis.com/auth/plus.login',
+            auth_location: 'https://accounts.google.com/o/oauth2/v2/auth',
+            scopes: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
             init: function(data)
             {
-                this.scopes = data.scopes || 'https://www.googleapis.com/auth/plus.login';
-
-                var d = def();
-
-                window.google_init = function()
-                {
-                    //noinspection JSUnresolvedVariable
-                    gapi.load('auth2', function()
-                    {
-                        //noinspection JSUndeclaredVariable,JSUnresolvedVariable
-                        auth2 = gapi.auth2.init({
-                            client_id: data.client_id,
-                            ux_mode: data.redirect ? "redirect" : "popup"
-                        });
-
-                        d.resolve();
-                    });
-                };
-
-                $.getScript("https://apis.google.com/js/client:platform.js?onload=google_init");
-
-                return d.promise();
+                this.client_id = data.client_id;
             },
             auth: function()
             {
                 var d = def();
 
-                //noinspection JSUnresolvedFunction
-                auth2.grantOfflineAccess({'redirect_uri': 'postmessage', 'scope': this.scopes}).then(function(data)
-                {
-                    if (data != undefined)
-                    {
-                        var code = data["code"];
+                var redirect_uri = REDIRECT_URI + "?callback=google_auth";
 
-                        if (code != undefined)
-                        {
-                            d.resolve("google", {
-                                "key": code
-                            });
-                        }
-                    }
-                });
+                window.google_auth = function(code)
+                {
+                    d.resolve("google", {
+                        "code": code,
+                        "redirect_uri": redirect_uri
+                    });
+                };
+
+                window.popup(this.auth_location + "?" + $.param({
+                    "client_id": this.client_id,
+                    "redirect_uri": redirect_uri,
+                    "scope": this.scopes,
+                    "display": "popup",
+                    "response_type": "code",
+                    "access_type": "offline"
+                }), "Authenticate", 500, 500);
 
                 return d.promise();
             }
@@ -476,4 +495,6 @@ function popup(url, title, w, h)
     {
         newWindow.focus();
     }
+
+    return newWindow;
 }

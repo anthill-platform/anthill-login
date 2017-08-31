@@ -472,6 +472,8 @@ class AccountModel(Model):
             'scopes' - a list of access scopes the user would like to get
             'gamespace' - a gamespace user would like to work with
             'attach_to' (optional) - an access token attach to in case of merge happening
+            'import_profile' (optional) - in case of 'social' type of credential, do import basic social info into a
+                user profile (default is true)
 
             Some other arguments may apply depending on the credential type. For example, 'code' for google.
         :param env:
@@ -634,6 +636,9 @@ class AccountModel(Model):
             'should_have' - a comma-separated list of scopes user should definitely have, or 403.
                 '*' means he fine with everything he gets.
 
+            'import_profile' (optional) - in case of 'social' type of credential, do import basic social info into a
+                user profile (default is true)
+
         :param env: environment variables passed back to authentication process (like user's ip address)
         :param db:
 
@@ -663,6 +668,7 @@ class AccountModel(Model):
 
         credential_authenticator = cred_types[cred_type]
 
+        fetch_profile = args.get("import_profile", "true") == "true"
         profile_data = None
 
         # if the credential is 'social', attach the credential from social network to an account
@@ -676,7 +682,8 @@ class AccountModel(Model):
                     credential=cred_type,
                     username=username,
                     account=account,
-                    env=env)
+                    env=env,
+                    fetch_profile=fetch_profile)
 
             except InternalError as e:
                 logging.warning("Failed to get profile_data: %s %s", e.code, e.body)

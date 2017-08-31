@@ -23,7 +23,7 @@ from model.token import TokensError
 from model.password import UserExists, BadNameFormat
 
 from social import SocialAuthenticator
-from social import google, facebook
+from social import google, facebook, vk
 
 
 class AttachAccountHandler(JsonHandler):
@@ -223,9 +223,14 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
             auth_as=auth_as)
 
 
-class AuthFacebookAuthenticationHandler(AuthenticatedHandler):
-    @coroutine
+class AuthCallbackHandler(RequestHandler):
     def get(self):
+        self.render("template/callback.html")
+
+
+class SocialAuthAuthenticationFormHandler(AuthenticatedHandler):
+    @coroutine
+    def get(self, credential_type):
 
         credential_types = self.application.credentials.credential_types
         gamespaces = self.application.gamespaces
@@ -233,11 +238,12 @@ class AuthFacebookAuthenticationHandler(AuthenticatedHandler):
         gamespace_name = self.get_argument('gamespace')
         redirect_to = self.get_argument('redirect')
 
-        api_module = facebook
-
         try:
-            api = credential_types[api_module.CREDENTIAL_TYPE]
+            api = credential_types[credential_type]
         except KeyError:
+            raise HTTPError(400, "Not supported")
+
+        if not api.has_auth_form():
             raise HTTPError(400, "Not supported")
 
         try:

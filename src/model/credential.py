@@ -174,9 +174,11 @@ class CredentialModel(Model):
         from social import facebook
         from social import gamecenter
         from social import steam
+        from social import vk
 
         self.register(authenticator.DevAuthenticator(application))
         self.register(google.GoogleAuthenticator(application))
+        self.register(vk.VKAuthenticator(application))
         self.register(facebook.FacebookAuthenticator(application))
         self.register(gamecenter.GameCenterAuthorizer(application))
         self.register(steam.SteamAuthenticator(application))

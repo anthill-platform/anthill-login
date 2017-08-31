@@ -1,26 +1,25 @@
-import tornado.httpclient
 
 from tornado.gen import coroutine, Return
-
-import logging
-import urllib
 
 from model import authenticator
 from model.authenticator import AuthenticationResult
 from model.key import KeyNotFound
 from . import SocialAuthenticator
 
-from common.social.facebook import FacebookAPI, FacebookPrivateKey
+import logging
+import urllib
+
 from common.social import APIError
+from common.social.vk import VKAPI
 
 
-CREDENTIAL_TYPE = "facebook"
+CREDENTIAL_TYPE = "vk"
 
 
-class FacebookAuthenticator(SocialAuthenticator, FacebookAPI):
+class VKAuthenticator(SocialAuthenticator, VKAPI):
     def __init__(self, application):
         SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
-        FacebookAPI.__init__(self, None)
+        VKAPI.__init__(self, None)
 
     @coroutine
     def authorize(self, gamespace, args, db=None):
@@ -36,24 +35,17 @@ class FacebookAuthenticator(SocialAuthenticator, FacebookAPI):
         except APIError as e:
             logging.exception("api error")
             raise authenticator.AuthenticationError("API error:" + e.body, e.code)
+        else:
+            auth_result = AuthenticationResult(credential=self.type(),
+                                               username=result.username,
+                                               response=result)
 
-        username = args.get("username", None)
-
-        if not username:
-            info = yield self.api_get_user_info(gamespace, access_token=result.access_token, fields="id", parse=False)
-            username = info["id"]
-
-        auth_result = AuthenticationResult(
-            credential=self.type(),
-            username=username,
-            response=result)
-
-        raise Return(auth_result)
+            raise Return(auth_result)
 
     def generate_login_url(self, app_id, redirect_url):
 
-        return "https://www.facebook.com/dialog/oauth/?" + urllib.urlencode({
-            "scope": "public_profile,user_friends",
+        return "https://oauth.vk.com/authorize?" + urllib.urlencode({
+            "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
             "client_id": app_id,
             "redirect_uri": redirect_url,
             "response_type": "code"

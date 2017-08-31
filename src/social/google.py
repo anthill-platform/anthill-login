@@ -7,6 +7,7 @@ from model.key import KeyNotFound
 from . import SocialAuthenticator
 
 import logging
+import urllib
 
 from common.social import APIError
 from common.social.google import GoogleAPI, GooglePrivateKey
@@ -23,12 +24,13 @@ class GoogleAuthenticator(SocialAuthenticator, GoogleAPI):
     @coroutine
     def authorize(self, gamespace, args, db=None):
         try:
-            key = args["key"]
+            code = args["code"]
+            redirect_uri = args["redirect_uri"]
         except KeyError:
             raise authenticator.AuthenticationError("missing_argument")
 
         try:
-            result = yield self.api_auth(gamespace, key)
+            result = yield self.api_auth(gamespace, code, redirect_uri)
         except APIError as e:
             logging.exception("api error")
             raise authenticator.AuthenticationError("API error:" + e.body, e.code)
@@ -39,5 +41,18 @@ class GoogleAuthenticator(SocialAuthenticator, GoogleAPI):
 
             raise Return(auth_result)
 
+    def generate_login_url(self, app_id, redirect_url):
+        return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.urlencode({
+            "scope": "public_profile,user_friends",
+            "client_id": app_id,
+            "redirect_uri": redirect_url,
+            "display": "popup",
+            "response_type": "code",
+            "access_type": "offline"
+        })
+
     def social_profile(self):
+        return True
+
+    def has_auth_form(self):
         return True

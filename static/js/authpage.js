@@ -8,6 +8,11 @@ $(function()
         form_auth("google");
     });
 
+    $('#signinVKButton').click(function()
+    {
+        form_auth("vk");
+    });
+
     $('#signinFacebookButton').click(function()
     {
         form_auth("facebook");

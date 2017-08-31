@@ -1,6 +1,8 @@
 import hashlib
 import re
 import common.access
+import hmac
+import base64
 
 
 from tornado.gen import coroutine, Return
@@ -19,13 +21,17 @@ class PasswordAdapter(object):
 class PasswordsModel(Model):
     NAME_PATTERN = re.compile("^([a-zA-Z0-9_-]+)$")
     ALGORITHMS = {
-        "2SHA256": lambda password, salt: hashlib.sha256(hashlib.sha256(password + salt).hexdigest()).hexdigest(),
-        "SHA256": lambda password, salt: hashlib.sha256(password).hexdigest()
+        "HMACSHA256": lambda c, password, salt: base64.b64encode(
+            hmac.new(key=str(c + salt), msg=str(password), digestmod=hashlib.sha256).digest()),
+        "2SHA256": lambda c, password, salt: hashlib.sha256(
+            hashlib.sha256(password + salt).hexdigest()).hexdigest(),
+        "SHA256": lambda c, password, salt: hashlib.sha256(
+            password).hexdigest()
     }
-    DEFAULT_ALGORITHM = "2SHA256"
+    DEFAULT_ALGORITHM = "HMACSHA256"
 
-    def __generate_password__(self, algorithm, password):
-        return PasswordsModel.ALGORITHMS[algorithm](password, self.salt)
+    def __generate_password__(self, credential, algorithm, password):
+        return PasswordsModel.ALGORITHMS[algorithm](credential, password, self.salt)
 
     def __init__(self, application, db):
         self.db = db
@@ -56,7 +62,7 @@ class PasswordsModel(Model):
                     SET `password`=%s, `algorithm`=%s
                     WHERE `credential`=%s
                 """,
-                self.__generate_password__(PasswordsModel.DEFAULT_ALGORITHM, password),
+                self.__generate_password__(username, PasswordsModel.DEFAULT_ALGORITHM, password),
                 PasswordsModel.DEFAULT_ALGORITHM, username)
         except DatabaseError as e:
             raise PasswordError("Failed to update a password: " + e.args[1])
@@ -88,7 +94,7 @@ class PasswordsModel(Model):
                     (`credential`, `password`, `algorithm`)
                     VALUES (%s, %s, %s);
                 """, username,
-                self.__generate_password__(PasswordsModel.DEFAULT_ALGORITHM, password),
+                self.__generate_password__(username, PasswordsModel.DEFAULT_ALGORITHM, password),
                 PasswordsModel.DEFAULT_ALGORITHM)
         except DatabaseError as e:
             raise PasswordError("Failed to create a password: " + e.args[1])
@@ -150,7 +156,7 @@ class PasswordsModel(Model):
 
         account_password = account.password
 
-        if self.__generate_password__(account.algorithm, password) == account_password:
+        if self.__generate_password__(credential, account.algorithm, password) == account_password:
             raise Return(account)
 
         raise BadPassword()

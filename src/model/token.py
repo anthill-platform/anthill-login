@@ -4,7 +4,7 @@ import logging
 from tornado.gen import coroutine, Return, Task
 from common.options import options
 
-from common.access import AccessTokenCache, INVALIDATION_CHANNEL
+from common.access import AccessToken, AccessTokenCache, INVALIDATION_CHANNEL
 
 import common.keyvalue
 import common.access
@@ -226,6 +226,13 @@ class AccessTokenModel(AccessTokenCache):
 
     @coroutine
     def validate_db(self, token, db):
+
+        issuer = token.get(AccessToken.ISSUER)
+
+        # no issuer means no external validation
+        if issuer is None:
+            raise Return(True)
+
         key = "id:" + token.uuid
 
         account_db = yield Task(db.get, key)

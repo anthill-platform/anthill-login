@@ -30,3 +30,6 @@ class SocialAuthenticator(authenticator.Authenticator):
     def get_app_id(self, gamespace, data=None):
         private_key = yield self.get_private_key(gamespace, data=data)
         raise Return(private_key.get_app_id())
+
+    def has_auth_form(self):
+        return False
