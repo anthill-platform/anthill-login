@@ -63,4 +63,4 @@ class FacebookAuthenticator(SocialAuthenticator, FacebookAPI):
         return True
 
     def has_auth_form(self):
-        return False
+        return True

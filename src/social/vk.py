@@ -45,7 +45,7 @@ class VKAuthenticator(SocialAuthenticator, VKAPI):
     def generate_login_url(self, app_id, redirect_url):
 
         return "https://oauth.vk.com/authorize?" + urllib.urlencode({
-            "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
+            "scope": "friends,offline",
             "client_id": app_id,
             "redirect_uri": redirect_url,
             "response_type": "code"
@@ -55,4 +55,4 @@ class VKAuthenticator(SocialAuthenticator, VKAPI):
         return True
 
     def has_auth_form(self):
-        return False
+        return True
