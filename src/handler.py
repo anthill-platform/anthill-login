@@ -17,7 +17,7 @@ from common.handler import AuthenticatedHandler, JsonHandler
 from model.access import ScopesCorrupterError, NoScopesFound
 from model.account import AuthenticationError
 from model.gamespace import GamespaceNotFound
-from model.credential import CredentialNotFound, CredentialIsNotValid
+from model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
 from model.key import KeyNotFound, KeyDataError
 from model.token import TokensError
 from model.password import UserExists, BadNameFormat
@@ -595,3 +595,21 @@ class ValidateHandler(RequestHandler):
             raise HTTPError(
                 403,
                 "Token is not valid.")
+
+
+class AccountCredentialsHandler(AuthenticatedHandler):
+    @coroutine
+    @scoped()
+    def get(self):
+
+        credentials = self.application.credentials
+
+        try:
+            user_credentials = yield credentials.list_account_credentials(self.token.account)
+        except CredentialError as e:
+            raise HTTPError(500, e.message)
+
+        self.dumps({
+            "credentials": user_credentials,
+            "account_id": self.token.account
+        })
