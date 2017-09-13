@@ -14,7 +14,7 @@ function auth_with(social_name)
 
     var social = SOCIAL[social_name];
 
-    var auth = social.auth();
+    var auth = social.auth(OPTS.gamespace);
     auth.done(function(social, data)
     {
         authenticate(social, data).done(function(token)
@@ -57,7 +57,7 @@ function auth_init(location, options)
             {
                 this.client_id = data.client_id;
             },
-            auth: function()
+            auth: function(gamespace)
             {
                 var d = def();
 
@@ -71,12 +71,9 @@ function auth_init(location, options)
                     });
                 };
 
-                window.popup(this.auth_location + "?" + $.param({
-                    "client_id": this.client_id,
-                    "redirect_uri": redirect_uri,
-                    "scope": this.scopes,
-                    "response_type": "code",
-                    "display": "popup"
+                window.popup("/auth/facebook?" + $.param({
+                    "gamespace": gamespace,
+                    "redirect": redirect_uri
                 }), "Authenticate", 655, 430);
 
                 return d.promise();
@@ -84,14 +81,11 @@ function auth_init(location, options)
         },
         vk:
         {
-            api_version: '5.68',
-            auth_location: 'https://oauth.vk.com/authorize',
-            scopes: 'friends,offline',
             init: function(data)
             {
                 this.client_id = data.client_id;
             },
-            auth: function()
+            auth: function(gamespace)
             {
                 var d = def();
 
@@ -105,13 +99,9 @@ function auth_init(location, options)
                     });
                 };
 
-                window.popup(this.auth_location + "?" + $.param({
-                    "client_id": this.client_id,
-                    "redirect_uri": redirect_uri,
-                    "display": "popup",
-                    "scope": "friends,offline",
-                    "response_type": "code",
-                    "v": this.api_version
+                window.popup("/auth/vk?" + $.param({
+                    "gamespace": gamespace,
+                    "redirect": redirect_uri
                 }), "Authenticate", 655, 430);
 
                 return d.promise();
@@ -119,13 +109,11 @@ function auth_init(location, options)
         },
         google:
         {
-            auth_location: 'https://accounts.google.com/o/oauth2/v2/auth',
-            scopes: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
             init: function(data)
             {
                 this.client_id = data.client_id;
             },
-            auth: function()
+            auth: function(gamespace)
             {
                 var d = def();
 
@@ -139,13 +127,9 @@ function auth_init(location, options)
                     });
                 };
 
-                window.popup(this.auth_location + "?" + $.param({
-                    "client_id": this.client_id,
-                    "redirect_uri": redirect_uri,
-                    "scope": this.scopes,
-                    "display": "popup",
-                    "response_type": "code",
-                    "access_type": "offline"
+                window.popup("/auth/google?" + $.param({
+                    "gamespace": gamespace,
+                    "redirect": redirect_uri
                 }), "Authenticate", 500, 500);
 
                 return d.promise();
@@ -156,7 +140,7 @@ function auth_init(location, options)
             init: function(data)
             {
             },
-            auth: function()
+            auth: function(gamespace)
             {
                 var d = def();
 

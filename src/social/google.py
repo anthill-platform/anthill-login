@@ -43,7 +43,7 @@ class GoogleAuthenticator(SocialAuthenticator, GoogleAPI):
 
     def generate_login_url(self, app_id, redirect_url):
         return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.urlencode({
-            "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
+            "scope": "profile email",
             "client_id": app_id,
             "redirect_uri": redirect_url,
             "display": "popup",
