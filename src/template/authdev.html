@@ -9,6 +9,7 @@
 
 	<link rel="stylesheet" href="/static/css/bootstrap.min.css">
 	<link rel="stylesheet" href="/static/css/login-modal.css">
+    <link rel="stylesheet" href="/static/css/font-awesome.min.css">
 
 </head>
 <body>
@@ -16,20 +17,24 @@
 <div class="container" role="main">
 
     <div class="modal-header" align="center">
-        <img class="img-circle" id="img_logo" src="/static/images/account.png">
+        <i class="fa fa-user-md fa-5x" aria-hidden="true"></i>
+        <h3>Developer Account</h3>
     </div>
 
     <div id="div-forms">
 
-        <div class="modal-body">
-            <input id="login_username" class="form-control" type="text" placeholder="Username" required>
-            <input id="login_password" class="form-control" type="password" placeholder="Password" required>
-        </div>
-        <div class="modal-footer">
-            <div>
-                <button type="submit" id="login-button" class="btn btn-primary btn-lg btn-block">Login</button>
+        <form id="login-form">
+            <div class="modal-body">
+                <input id="login_username" name="username" class="form-control" autocomplete="on" type="text" placeholder="Username" required autofocus>
+                <input id="login_password" name="password" class="form-control" autocomplete="on" type="password" placeholder="Password" required>
             </div>
-        </div>
+            <div class="modal-footer">
+                <div>
+                    <button type="submit" id="login-button" class="btn btn-primary btn-lg btn-block">Login</button>
+                </div>
+            </div>
+
+        </form>
 
     </div>
 </div>

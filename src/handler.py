@@ -189,25 +189,13 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
 
                     return
 
-        client_ids = {}
-
-        social_apis = {
-            name: authorizer
+        social_apis = [
+            name
             for name, authorizer in credential_types.iteritems()
             if isinstance(authorizer, SocialAuthenticator)
-        }
+        ]
 
-        keys_data = yield keys.find_keys_decoded(gamespace_id, social_apis.keys())
-
-        for name, data in keys_data.iteritems():
-            api = social_apis[name]
-
-            app_id = yield api.get_app_id(gamespace=gamespace_id, data=data)
-
-            if app_id:
-                client_ids[name] = {
-                    "client_id": app_id
-                }
+        checked_social_apis = yield keys.check_keys(gamespace_id, social_apis)
 
         scopes = common.access.parse_scopes(scopes_data)
 
@@ -216,7 +204,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
 
             scopes=scopes,
             redirect_to=redirect_to,
-            client_ids=client_ids,
+            social_apis=checked_social_apis,
             should_have=should_have,
             gamespace=gamespace_name,
             attach_to=attach_to,

@@ -1,7 +1,7 @@
 
 function auth_dev_init(callback)
 {
-    $("#login-button").click(function ()
+    $("#login-form").submit(function (event)
     {
         var username = $('#login_username').val();
         var password = $('#login_password').val();
@@ -10,6 +10,6 @@ function auth_dev_init(callback)
 
         window.close();
 
-        return false;
+        event.preventDefault();
     });
 }

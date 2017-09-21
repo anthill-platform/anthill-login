@@ -96,10 +96,10 @@ class AuthServer(common.server.Server):
             (r"/logout", common.handler.LogoutHandler),
 
             (r"/auth/callback", h.AuthCallbackHandler),
+            (r"/auth/dev", h.AuthorizationDevHandler),
             (r"/auth/([a-z]+)", h.SocialAuthAuthenticationFormHandler),
 
             (r"/authform", h.AuthAuthenticationHandler),
-            (r"/authdev", h.AuthorizationDevHandler),
 
             (r"/credentials", h.AccountCredentialsHandler),
             (r"/attach", h.AttachAccountHandler),

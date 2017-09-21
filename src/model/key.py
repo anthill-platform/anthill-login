@@ -260,6 +260,26 @@ class KeyModel(Model):
         raise Return([KeyAdapter(key) for key in keys])
 
     @coroutine
+    def check_keys(self, gamespace_id, keys_to_check):
+        """
+        Returns a list of keys that have been actually set for a gamespace
+        """
+
+        if not keys_to_check:
+            raise Return(set())
+
+        try:
+            keys = yield self.db.query("""
+                SELECT `key_name`
+                FROM `gamespace_keys`
+                WHERE `gamespace_id`=%s AND `key_name` IN %s;
+            """, gamespace_id, keys_to_check)
+        except DatabaseError as e:
+            raise KeyDataError("Failed to list keys: " + e.args[1])
+
+        raise Return(set(key["key_name"] for key in keys))
+
+    @coroutine
     def update_key(self, gamespace_id, key_id, key_name):
 
         KeyModel.validate_key(key_name)

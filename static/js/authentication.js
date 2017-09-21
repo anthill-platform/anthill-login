@@ -1,18 +1,74 @@
 
-function def()
+OPTS = {};
+
+REDIRECT_URI = document.location.origin + "/auth/callback";
+
+function OAuth2Authentication(name, callback, form_width, form_height)
 {
-    return $.Deferred();
+    this.name = name;
+    this.callback = callback;
+    this.form_width = form_width || 655;
+    this.form_height = form_height || 430;
 }
 
-OPTS = {};
-SOCIAL = {};
-REDIRECT_URI = document.location.origin + "/auth/callback";
+OAuth2Authentication.prototype.auth = function(gamespace)
+{
+    var d = $.Deferred();
+    var zis = this;
+
+    var redirect_uri = REDIRECT_URI + "?callback=" + this.callback;
+
+    window[this.callback] = function(code)
+    {
+        d.resolve(zis.name, {
+            "code": code,
+            "redirect_uri": redirect_uri
+        });
+    };
+
+    window.popup("/auth/" + this.name + "?" + $.param({
+        "gamespace": gamespace,
+        "redirect": redirect_uri
+    }), "Authenticate", this.form_width, this.form_height);
+
+    return d.promise();
+};
+
+function DevAuthentication()
+{
+
+}
+
+DevAuthentication.prototype.auth = function(gamespace)
+{
+    var d = $.Deferred();
+
+    window.devauth = function(username, password)
+    {
+        d.resolve("dev", {
+            "username": username,
+            "key": password
+        })
+    };
+
+    window.popup(document.location.origin + "/auth/dev?callback=devauth", "Authenticate", 360, 380);
+
+    return d.promise();
+};
+
+
+AUTHENTICATION_METHODS = {
+    "facebook": new OAuth2Authentication("facebook", "facebook_auth", 655, 430),
+    "vk": new OAuth2Authentication("vk", "vk_auth", 655, 430),
+    "google": new OAuth2Authentication("google", "google_auth", 500, 500),
+    "dev": new DevAuthentication()
+};
 
 function auth_with(social_name)
 {
-    var d = def();
+    var d = $.Deferred();
 
-    var social = SOCIAL[social_name];
+    var social = AUTHENTICATION_METHODS[social_name];
 
     var auth = social.auth(OPTS.gamespace);
     auth.done(function(social, data)
@@ -47,145 +103,17 @@ function parse_url_arguments(location){
 
 function auth_init(location, options)
 {
-    //noinspection JSUndeclaredVariable
-    SOCIAL = {
-        facebook:
-        {
-            scopes: 'public_profile,user_friends',
-            auth_location: 'https://www.facebook.com/dialog/oauth/',
-            init: function(data)
-            {
-                this.client_id = data.client_id;
-            },
-            auth: function(gamespace)
-            {
-                var d = def();
-
-                var redirect_uri = REDIRECT_URI + "?callback=facebook_auth";
-
-                window.facebook_auth = function(code)
-                {
-                    d.resolve("facebook", {
-                        "code": code,
-                        "redirect_uri": redirect_uri
-                    });
-                };
-
-                window.popup("/auth/facebook?" + $.param({
-                    "gamespace": gamespace,
-                    "redirect": redirect_uri
-                }), "Authenticate", 655, 430);
-
-                return d.promise();
-            }
-        },
-        vk:
-        {
-            init: function(data)
-            {
-                this.client_id = data.client_id;
-            },
-            auth: function(gamespace)
-            {
-                var d = def();
-
-                var redirect_uri = REDIRECT_URI + "?callback=vk_auth";
-
-                window.vk_auth = function(code)
-                {
-                    d.resolve("vk", {
-                        "code": code,
-                        "redirect_uri": redirect_uri
-                    });
-                };
-
-                window.popup("/auth/vk?" + $.param({
-                    "gamespace": gamespace,
-                    "redirect": redirect_uri
-                }), "Authenticate", 655, 430);
-
-                return d.promise();
-            }
-        },
-        google:
-        {
-            init: function(data)
-            {
-                this.client_id = data.client_id;
-            },
-            auth: function(gamespace)
-            {
-                var d = def();
-
-                var redirect_uri = REDIRECT_URI + "?callback=google_auth";
-
-                window.google_auth = function(code)
-                {
-                    d.resolve("google", {
-                        "code": code,
-                        "redirect_uri": redirect_uri
-                    });
-                };
-
-                window.popup("/auth/google?" + $.param({
-                    "gamespace": gamespace,
-                    "redirect": redirect_uri
-                }), "Authenticate", 500, 500);
-
-                return d.promise();
-            }
-        },
-        dev:
-        {
-            init: function(data)
-            {
-            },
-            auth: function(gamespace)
-            {
-                var d = def();
-
-                window.devauth = function(username, password)
-                {
-                    d.resolve("dev", {
-                        "username": username,
-                        "key": password
-                    })
-                };
-
-                window.popup(OPTS.location + "/authdev?callback=devauth", "Authenticate", 360, 360);
-
-                return d.promise();
-            }
-        }
-    };
-
-    var sns = options["sns"];
-    var defs = [];
-
-    for (var sns_id in sns)
-    {
-        var sns_data = sns[sns_id];
-        var social = SOCIAL[sns_id];
-
-        if (social)
-        {
-            defs.push(social.init(sns_data));
-        }
-    }
-
     OPTS["location"] = location;
     OPTS["gamespace"] = options.gamespace;
     OPTS["scopes"] = options.scopes || "";
     OPTS["should_have"] = options.should_have || "*";
     OPTS["attach_to"] = options.attach_to || "";
     OPTS["auth_as"] = options.auth_as || "";
-
-    return $.when.apply($, defs);
 }
 
 function resolve_conflict(method, resolve_with, resolve_token)
 {
-    var d = def();
+    var d = $.Deferred();
 
     var params = {
         "resolve_with": resolve_with,
@@ -271,7 +199,7 @@ function render_account(parent, account)
 
 function conflict(response)
 {
-    var d = def();
+    var d = $.Deferred();
 
     var reason = response["result_id"];
     var resolve_token = response["resolve_token"];
@@ -388,7 +316,7 @@ function conflict(response)
 
 function authenticate(credential, data)
 {
-    var d = def();
+    var d = $.Deferred();
 
     var params = {
         "credential": credential,

@@ -3,24 +3,9 @@ AUTHOPTS = {};
 
 $(function()
 {
-    $('#signinGoogleButton').click(function()
+    $('.sign-in-button').click(function()
     {
-        form_auth("google");
-    });
-
-    $('#signinVKButton').click(function()
-    {
-        form_auth("vk");
-    });
-
-    $('#signinFacebookButton').click(function()
-    {
-        form_auth("facebook");
-    });
-
-    $('#signinDevButton').click(function()
-    {
-        form_auth("dev");
+        form_auth($(this).data('social'));
     });
 });
 
@@ -61,35 +46,25 @@ function form_failed(reason, data, responseText)
 }
 
 function authform_init(
-    client_ids,
     redirect_to,
     gamespace,
     scopes,
     should_have,
     attach_to,
-    auth_as,
-
-    callback)
+    auth_as)
 {
     AUTHOPTS["redirect_to"] = redirect_to;
 
     $(function()
     {
-        var sns = {
-            "dev": {}
-        };
-
-        $.extend(sns, client_ids);
-
         var settings = {
             "gamespace": gamespace,
             "scopes": scopes,
             "should_have": should_have,
             "attach_to": attach_to,
-            "auth_as": auth_as,
-            "sns": sns
+            "auth_as": auth_as
         };
 
-        auth_init('', settings).done(callback);
+        auth_init('', settings);
     });
 }
