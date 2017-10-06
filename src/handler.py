@@ -55,7 +55,7 @@ class AttachAccountHandler(JsonHandler):
         try:
             result = yield accounts_data.attach_account(arguments, env=env)
 
-            if self.get_argument("full", False):
+            if self.get_argument("full", False) == "true":
                 self.dumps(result)
             else:
                 self.write(result["token"])
@@ -107,7 +107,7 @@ class AuthorizeHandler(JsonHandler):
             # proceeds the authorization
             result = yield accounts_data.authorize(arguments, env)
 
-            if self.get_argument("full", False):
+            if self.get_argument("full", False) == "true":
                 self.dumps(result)
             else:
                 self.write(result["token"])
@@ -211,7 +211,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
             auth_as=auth_as)
 
 
-class AuthCallbackHandler(RequestHandler):
+class OAuth2CallbackHandler(RequestHandler):
     def get(self):
         self.render("template/callback.html")
 
@@ -224,7 +224,7 @@ class SocialAuthAuthenticationFormHandler(AuthenticatedHandler):
         gamespaces = self.application.gamespaces
 
         gamespace_name = self.get_argument('gamespace')
-        redirect_to = self.get_argument('redirect')
+        redirect_uri = self.get_argument('redirect', self.get_argument("redirect_uri"))
 
         try:
             api = credential_types[credential_type]
@@ -244,7 +244,7 @@ class SocialAuthAuthenticationFormHandler(AuthenticatedHandler):
         except KeyNotFound:
             raise HTTPError(500, "This auth is not configured yet")
 
-        url = api.generate_login_url(client_id, redirect_to)
+        url = api.generate_login_url(client_id, redirect_uri)
 
         self.redirect(url)
 
@@ -292,10 +292,7 @@ class AuthorizationDevHandler(AuthenticatedHandler):
 
     @coroutine
     def get(self):
-        callback = self.get_argument("callback")
-        self.render(
-            "template/authdev.html",
-            callback=callback)
+        self.render("template/authdev.html")
 
 
 class InternalHandler(object):
@@ -552,7 +549,7 @@ class ResolveConflictHandler(AuthenticatedHandler):
         try:
             result = yield accounts_data.resolve_conflict(self.token, resolve_method, arguments, env=env)
 
-            if self.get_argument("full", False):
+            if self.get_argument("full", False) == "true":
                 self.dumps(result)
             else:
                 self.write(result["token"])

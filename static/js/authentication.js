@@ -1,12 +1,11 @@
 
 OPTS = {};
 
-REDIRECT_URI = document.location.origin + "/auth/callback";
+REDIRECT_URI = document.location.origin + "/auth/oauth2callback";
 
-function OAuth2Authentication(name, callback, form_width, form_height)
+function OAuth2Authentication(name, form_width, form_height)
 {
     this.name = name;
-    this.callback = callback;
     this.form_width = form_width || 655;
     this.form_height = form_height || 430;
 }
@@ -16,19 +15,17 @@ OAuth2Authentication.prototype.auth = function(gamespace)
     var d = $.Deferred();
     var zis = this;
 
-    var redirect_uri = REDIRECT_URI + "?callback=" + this.callback;
-
-    window[this.callback] = function(code)
+    window.auth_callback = function(code)
     {
         d.resolve(zis.name, {
             "code": code,
-            "redirect_uri": redirect_uri
+            "redirect_uri": REDIRECT_URI
         });
     };
 
     window.popup("/auth/" + this.name + "?" + $.param({
         "gamespace": gamespace,
-        "redirect": redirect_uri
+        "redirect_uri": REDIRECT_URI
     }), "Authenticate", this.form_width, this.form_height);
 
     return d.promise();
@@ -43,7 +40,7 @@ DevAuthentication.prototype.auth = function(gamespace)
 {
     var d = $.Deferred();
 
-    window.devauth = function(username, password)
+    window.auth_callback = function(username, password)
     {
         d.resolve("dev", {
             "username": username,
@@ -51,16 +48,16 @@ DevAuthentication.prototype.auth = function(gamespace)
         })
     };
 
-    window.popup(document.location.origin + "/auth/dev?callback=devauth", "Authenticate", 360, 380);
+    window.popup(document.location.origin + "/auth/dev", "Authenticate", 360, 380);
 
     return d.promise();
 };
 
 
 AUTHENTICATION_METHODS = {
-    "facebook": new OAuth2Authentication("facebook", "facebook_auth", 655, 430),
-    "vk": new OAuth2Authentication("vk", "vk_auth", 655, 430),
-    "google": new OAuth2Authentication("google", "google_auth", 500, 500),
+    "facebook": new OAuth2Authentication("facebook", 655, 430),
+    "vk": new OAuth2Authentication("vk", 655, 430),
+    "google": new OAuth2Authentication("google", 500, 500),
     "dev": new DevAuthentication()
 };
 

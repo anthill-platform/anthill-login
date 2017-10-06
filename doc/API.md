@@ -58,8 +58,7 @@ To enable this feature, please do the following:
 
 1. Create the Web Application <a href="https://console.developers.google.com/apis/credentials/oauthclient">OAuth Client ID</a> 
 at the Google API Console;
-2. Put the Login's service location (for example, `http(s)://login-dev.example.com`) 
-into the `Authorized JavaScript origins` section;
+2. Add the application website (for example, `http(s)://example.com/`) into the `Authorized redirect URIs` list.
 3. Download a client secret JSON file;
 4. Open the Anthill Admin tool and select the Login service;
 5. Select the section "Keys" and click "Add New Key";
@@ -67,15 +66,14 @@ into the `Authorized JavaScript origins` section;
 
 After these steps, login using google accounts will be available.
 
-To do the actual authentication, authentication code should be obtained from the Google first.
-Please see <a href="https://developers.google.com/identity/protocols/OAuth2WebServer">this page</a> 
-for documentation about obtaining authentication code from Google.
-
 These arguments are expected during <a href="#authenticate">authentication</a>:
 
 | Argument         | Description                                   |
 |------------------|-----------------------------------------------|
-| `key`            | Authentication code from Google |
+| `code`           | OAuth 2.0 authentication code.                |
+| `redurect_uri`   | OAuth 2.0 redirect location.                  |
+
+See <a href="#oauth-2.0">OAuth 2.0</a> section to how obtain these arguments.
 
 ### `facebook`
 A way to authenticate using a facebook account. 
@@ -84,7 +82,7 @@ To enable this feature, please do the following:
 
 1. Create a <a href="https://developers.facebook.com/apps/">New Application</a> 
 at the Facebook Developers section;
-2. Put the Login's service location (for example, `http(s)://login-dev.example.com`) 
+2. Add the application website (for example, `http(s)://example.com/`) 
 into the `Valid OAuth redirect URIs` section (under Facebook Login product);
 3. Create such JSON object:
 
@@ -101,16 +99,51 @@ And replace `<app-id>` and `<app-secret>` with the App ID and App Secret respect
 5. Select the section "Keys" and click "Add New Key";
 6. Type in `facebook` as a Key Name, and paste JSON object, created before, as a Key Data.
 
-After these steps, login using google accounts will be available.
-
-To do the actual authentication, <a href="https://developers.facebook.com/docs/facebook-login/access-tokens/expiration-and-extension">Short-Lived Access Token</a> 
-should be obtained from the Facebook first.
+After these steps, login using facebook accounts will be available.
 
 These arguments are expected during <a href="#authenticate">authentication</a>:
 
 | Argument         | Description                                   |
 |------------------|-----------------------------------------------|
-| `key`            | Short-Lived Access Token from Facebook |
+| `code`           | OAuth 2.0 authentication code.                |
+| `redurect_uri`   | OAuth 2.0 redirect location.                  |
+
+See <a href="#oauth-2.0">OAuth 2.0</a> section to how obtain these arguments.
+
+### `vk`
+A way to authenticate using a VKontakte (vk.com) account. 
+
+To enable this feature, please do the following:
+
+1. Create a <a href="https://vk.com/editapp?act=create">New Application</a> 
+at the Developers section;
+2. Add the application website (for example, `http(s)://example.com/`) 
+into the `Authorized redirect URI`;
+3. Create such JSON object:
+
+```json
+{
+    "client_id": "<client_id>",
+    "client_secret": "<client_secret>"
+}
+```
+
+And replace `<client_id>` and `<client_secret>` with the Application ID and Secure key respectively;
+
+4. Open the Anthill Admin tool and select the Login service;
+5. Select the section "Keys" and click "Add New Key";
+6. Type in `vk` as a Key Name, and paste JSON object, created before, as a Key Data.
+
+After these steps, login using facebook accounts will be available.
+
+These arguments are expected during <a href="#authenticate">authentication</a>:
+
+| Argument         | Description                                   |
+|------------------|-----------------------------------------------|
+| `code`           | OAuth 2.0 authentication code.                |
+| `redurect_uri`   | OAuth 2.0 redirect location.                  |
+
+See <a href="#oauth-2.0">OAuth 2.0</a> section to how obtain these arguments.
 
 ### `gamecenter`
 A way to authenticate using a Apple's Game Center. Please note, this way is only possible on `iOS`.
@@ -160,6 +193,46 @@ These arguments are expected during <a href="#authenticate">authentication</a>:
 |------------------|-----------------------------------------------|
 | `ticket`         | Session ticket <a href="https://partner.steamgames.com/documentation/auth#client_to_backend_webapi">acquired from Steam API</a>        |
 | `app_id`         | Application ID (`app_id.txt`) to authenticate for        |
+
+# OAuth 2.0
+
+Some "external" credentials (`facebook`, `google`, `vk` etc) follow OAuth 2.0 protocol in order of the 
+authorization to proceed. This authorization can be achieved with a simple flow:
+
+1. User has the corresponding social network's "login page" shown, asking user consent for the authorization.
+2. After approval, the browser gets redirected back to the special `redirect_uri` location, 
+    with the special `code` argument.
+3. This redirect is caught and the code is extracted as an argument for the actual authorization in the login service.
+
+In practice, each social service has different location of the "login page", so login service encapsulates it with
+a convenient call. Open this URL in the application's in-app browser:
+
+```rest
+http(s)://<login-service-location>/auth/<credential>?redirect_uri=<redirect_uri>&gamespace=<gamespace>
+```
+
+| Argument         | Description                                                                                    |
+|------------------|------------------------------------------------------------------------------------------------|
+| `credential`     | A credential type of the social service (for example, `google`) |
+| `redirect_uri`   | Application's main domain page, for example, `http://example.com/`. It's important to have `/` at the end.        |
+| `gamespace`      | A gamespace name (alias) to authenticate in. See <a href="#authenticate">Authenticate</a> call for more details. |
+
+Please note that `redirect_uri` value has to be added into the allowed "REDIRECT URIs" list in each social service's settings page
+of your application.
+
+* This call will automatically redirect to the corresponding social service authorization form on which the user is asked
+for login and password. 
+* After successful authorization, the browser is redirected to the `redirect_uri` page, according to
+the OAuth 2.0 standard. 
+* This redirect will have a query argument `code`, and the application has to catch the redirect, extract the `code`,
+closing the browser.
+* Then `code` and `redirect_uri` has to be used during the last-step <a href="#authenticate">authentication</a> call
+to the login service.
+
+### Admin Tool
+
+You can log in into the <a href="https://github.com/anthill-platform/anthill-admin">Admin Tool</a> using these credentials, but the 
+`http(s)://<login-service-location>/auth/oauth2callback` has to be added as a `redirect_uri` (see above).
 
 # Keys
 

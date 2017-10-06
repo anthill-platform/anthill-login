@@ -50,12 +50,12 @@ class FacebookAuthenticator(SocialAuthenticator, FacebookAPI):
 
         raise Return(auth_result)
 
-    def generate_login_url(self, app_id, redirect_url):
+    def generate_login_url(self, app_id, redirect_uri):
 
         return "https://www.facebook.com/dialog/oauth/?" + urllib.urlencode({
             "scope": "public_profile,user_friends",
             "client_id": app_id,
-            "redirect_uri": redirect_url,
+            "redirect_uri": redirect_uri,
             "response_type": "code"
         })
 

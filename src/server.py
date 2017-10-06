@@ -95,7 +95,7 @@ class AuthServer(common.server.Server):
         return [
             (r"/logout", common.handler.LogoutHandler),
 
-            (r"/auth/callback", h.AuthCallbackHandler),
+            (r"/auth/oauth2callback", h.OAuth2CallbackHandler),
             (r"/auth/dev", h.AuthorizationDevHandler),
             (r"/auth/([a-z]+)", h.SocialAuthAuthenticationFormHandler),
 

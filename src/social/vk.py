@@ -42,12 +42,12 @@ class VKAuthenticator(SocialAuthenticator, VKAPI):
 
             raise Return(auth_result)
 
-    def generate_login_url(self, app_id, redirect_url):
+    def generate_login_url(self, app_id, redirect_uri):
 
         return "https://oauth.vk.com/authorize?" + urllib.urlencode({
             "scope": "friends,offline",
             "client_id": app_id,
-            "redirect_uri": redirect_url,
+            "redirect_uri": redirect_uri,
             "response_type": "code"
         })
 

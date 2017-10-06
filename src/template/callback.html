@@ -16,9 +16,8 @@
 
     var arguments = parse_url_arguments(document.location);
     var code = arguments["code"];
-    var callback = arguments["callback"];
 
-    opener[callback](code);
+    opener["auth_callback"](code);
 
     window.close();
 </script>
