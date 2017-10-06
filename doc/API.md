@@ -73,7 +73,7 @@ These arguments are expected during <a href="#authenticate">authentication</a>:
 | `code`           | OAuth 2.0 authentication code.                |
 | `redurect_uri`   | OAuth 2.0 redirect location.                  |
 
-See <a href="#oauth-2.0">OAuth 2.0</a> section to how obtain these arguments.
+See <a href="#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
 
 ### `facebook`
 A way to authenticate using a facebook account. 
@@ -108,7 +108,7 @@ These arguments are expected during <a href="#authenticate">authentication</a>:
 | `code`           | OAuth 2.0 authentication code.                |
 | `redurect_uri`   | OAuth 2.0 redirect location.                  |
 
-See <a href="#oauth-2.0">OAuth 2.0</a> section to how obtain these arguments.
+See <a href="#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
 
 ### `vk`
 A way to authenticate using a VKontakte (vk.com) account. 
@@ -143,7 +143,7 @@ These arguments are expected during <a href="#authenticate">authentication</a>:
 | `code`           | OAuth 2.0 authentication code.                |
 | `redurect_uri`   | OAuth 2.0 redirect location.                  |
 
-See <a href="#oauth-2.0">OAuth 2.0</a> section to how obtain these arguments.
+See <a href="#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
 
 ### `gamecenter`
 A way to authenticate using a Apple's Game Center. Please note, this way is only possible on `iOS`.
