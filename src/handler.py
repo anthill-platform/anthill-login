@@ -12,7 +12,7 @@ import common.sign
 
 from common.internal import InternalError
 from common.access import scoped, internal
-from common.handler import AuthenticatedHandler, JsonHandler
+from common.handler import AuthenticatedHandler, CORSHandlerMixin, JsonHandler
 
 from model.access import ScopesCorrupterError, NoScopesFound
 from model.account import AuthenticationError
@@ -26,7 +26,7 @@ from social import SocialAuthenticator
 from social import google, facebook, vk
 
 
-class AttachAccountHandler(JsonHandler):
+class AttachAccountHandler(CORSHandlerMixin, JsonHandler):
     """
     Attaches a credential to an account.
     """
@@ -77,7 +77,7 @@ class AttachAccountHandler(JsonHandler):
         self.dumps(obj)
 
 
-class AuthorizeHandler(JsonHandler):
+class AuthorizeHandler(CORSHandlerMixin, JsonHandler):
     """
     Authorizes the user.
     """
