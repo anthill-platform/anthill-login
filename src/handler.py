@@ -4,7 +4,7 @@ import base64
 import logging
 import ujson
 
-from tornado.web import HTTPError, RequestHandler
+from tornado.web import HTTPError
 from tornado.gen import coroutine, Return
 
 import common.access
@@ -12,7 +12,7 @@ import common.sign
 
 from common.internal import InternalError
 from common.access import scoped, internal
-from common.handler import AuthenticatedHandler, CORSHandlerMixin, JsonHandler
+from common.handler import AuthenticatedHandler, AnthillRequestHandler, JsonHandler
 
 from model.access import ScopesCorrupterError, NoScopesFound
 from model.account import AuthenticationError
@@ -26,7 +26,7 @@ from social import SocialAuthenticator
 from social import google, facebook, vk
 
 
-class AttachAccountHandler(CORSHandlerMixin, JsonHandler):
+class AttachAccountHandler(JsonHandler):
     """
     Attaches a credential to an account.
     """
@@ -77,7 +77,7 @@ class AttachAccountHandler(CORSHandlerMixin, JsonHandler):
         self.dumps(obj)
 
 
-class AuthorizeHandler(CORSHandlerMixin, JsonHandler):
+class AuthorizeHandler(JsonHandler):
     """
     Authorizes the user.
     """
@@ -211,7 +211,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
             auth_as=auth_as)
 
 
-class OAuth2CallbackHandler(RequestHandler):
+class OAuth2CallbackHandler(AnthillRequestHandler):
     def get(self):
         self.render("template/callback.html")
 
@@ -567,7 +567,7 @@ class ResolveConflictHandler(AuthenticatedHandler):
         self.dumps(obj)
 
 
-class ValidateHandler(RequestHandler):
+class ValidateHandler(AnthillRequestHandler):
     @coroutine
     def get(self):
         token_string = self.get_argument("access_token")
