@@ -19,7 +19,7 @@ from model.account import AuthenticationError
 from model.gamespace import GamespaceNotFound
 from model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
 from model.key import KeyNotFound, KeyDataError
-from model.token import TokensError
+from model.token import TokensError, AccessToken
 from model.password import UserExists, BadNameFormat
 
 from social import SocialAuthenticator
@@ -567,7 +567,7 @@ class ResolveConflictHandler(AuthenticatedHandler):
         self.dumps(obj)
 
 
-class ValidateHandler(AnthillRequestHandler):
+class ValidateHandler(JsonHandler):
     @coroutine
     def get(self):
         token_string = self.get_argument("access_token")
@@ -575,7 +575,11 @@ class ValidateHandler(AnthillRequestHandler):
         token = common.access.AccessToken(token_string)
 
         if (yield self.application.tokens.validate(token)):
-            self.write("OK")
+            self.dumps({
+                "account": str(token.account),
+                "credential": token.get(AccessToken.USERNAME),
+                "scopes": token.scopes
+            })
         else:
             raise HTTPError(
                 403,
