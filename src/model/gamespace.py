@@ -56,7 +56,7 @@ class GamespacesModel(Model):
     def setup_table_gamespace(self):
         yield self.create_gamespace(
             "Default",
-            ["profile_write", "profile", "game", "message_listen", "group", "party", "event"])
+            ["profile_write", "profile", "game", "message_listen", "group", "party", "event", "exec_func_call"])
 
     @coroutine
     def setup_table_gamespace_aliases(self):
