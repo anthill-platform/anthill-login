@@ -102,6 +102,9 @@ class AccessTokenAuthenticator(AuthoritativeAuthenticator):
 
         token_cache = self.application.token_cache
 
+        if not token_cache:
+            raise AuthenticationError("Token cache is not defined.", code=500)
+
         token_data = args["access_token"]
         token = common.access.AccessToken(token_data)
 

@@ -261,6 +261,9 @@ class ExtendHandler(AuthenticatedHandler):
         extend_token = common.access.AccessToken(extend)
         token_cache = self.application.token_cache
 
+        if not token_cache:
+            raise HTTPError(500, "Token cache is not defined.")
+
         valid = yield token_cache.validate(extend_token)
         if not valid:
             raise HTTPError(
@@ -314,6 +317,9 @@ class InternalHandler(object):
         token = common.access.AccessToken(token)
         extend_with = common.access.AccessToken(extend_with)
         token_cache = self.application.token_cache
+
+        if not token_cache:
+            raise HTTPError(500, "Token cache is not defined.")
 
         if not (yield token_cache.validate(token)):
             raise InternalError(403, "Token extend to is not valid")
