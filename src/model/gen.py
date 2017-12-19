@@ -63,6 +63,7 @@ class AccessTokenGen(AccessToken):
 
         return {
             "expires": for_time,
+            "account": containers.get(AccessToken.ACCOUNT),
             "key": access_token,
             "uuid": uuid,
             "scopes": requested_scopes

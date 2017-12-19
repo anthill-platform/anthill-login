@@ -284,7 +284,8 @@ class ExtendHandler(AuthenticatedHandler):
         self.dumps({
             "token": new_data["key"],
             "expires_in": new_data["expires"],
-            "scopes": new_data["scopes"]
+            "scopes": new_data["scopes"],
+            "account": new_data["account"]
         })
 
 
