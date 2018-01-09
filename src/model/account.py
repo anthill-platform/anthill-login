@@ -937,6 +937,8 @@ class AccountModel(Model):
         except DatabaseError as e:
             raise AccountError("Failed to create account: " + e.args[1])
 
+        self.application.monitor_rate("accounts", "created")
+
         raise Return(str(result))
 
     @coroutine
