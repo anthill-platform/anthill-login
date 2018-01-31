@@ -10,7 +10,7 @@ from model.authenticator import AuthenticationResult
 from model.key import KeyNotFound
 from . import SocialAuthenticator
 
-from common.social.facebook import FacebookAPI, FacebookPrivateKey
+from common.social.apis import FacebookAPI
 from common.social import APIError
 
 
@@ -19,11 +19,11 @@ CREDENTIAL_TYPE = "facebook"
 
 class FacebookAuthenticator(SocialAuthenticator, FacebookAPI):
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
+        SocialAuthenticator.__init__(self, application, FacebookAPI.NAME)
         FacebookAPI.__init__(self, None)
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
 
         try:
             code = args["code"]

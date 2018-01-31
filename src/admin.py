@@ -5,12 +5,14 @@ import datetime
 import ujson
 
 from tornado.gen import coroutine, Return
+from common.social import apis
 
 from model.access import UserInvalidError, ScopesCorrupterError, NoScopesFound
 from model.password import UserExists, UserNotFound, BadNameFormat
 from model.gamespace import GamespaceNotFound, GamespaceError, NoSuchGamespaceAlias
 from model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
 from model.key import KeyDataError, KeyNotFound
+
 
 
 class AccountsController(a.AdminController):
@@ -429,34 +431,100 @@ class EditKeyController(a.AdminController):
         except KeyNotFound:
             raise a.ActionError("No such key")
 
+        api_type = apis.api_types.get(key_name)
+        if api_type:
+            api = api_type(self.application.cache)
+
+            if api.has_private_key():
+                private_key = yield api.get_private_key(self.gamespace, data=key_data)
+
+                if private_key.has_ui():
+                    private_key_data = private_key.get()
+
+                    raise a.Return({
+                        "key_name": key_name,
+                        "private_key": private_key,
+                        "private_key_data": private_key_data
+                    })
+
         raise a.Return({
             "key_name": key_name,
             "key_data": key_data
         })
 
     def render(self, data):
-        return [
+
+        r = [
             a.breadcrumbs([
                 a.link("keys", "Keys"),
                 a.link("key", data["key_name"], key_id=self.context.get("key_id"))
-            ], "Edit contents"),
+            ], "Edit contents")
+        ]
 
-            a.form(data["key_name"], fields={
+        private_key = data.get("private_key")
+
+        if private_key:
+            r.append(a.form(data["key_name"], fields=private_key.render(), methods={
+                "update_api_key": a.method("Update Key", "primary")
+            }, data=data["private_key_data"]))
+        else:
+            r.append(a.form(data["key_name"], fields={
                 "key_data": a.field("Key Data", "json", "primary", "non-empty", multiline=8, order=2)
             }, methods={
-                "update": a.method("Update Key", "primary")
-            }, data=data),
+                "update_raw_key": a.method("Update Key", "primary")
+            }, data=data))
 
-            a.links("Navigate", [
+        r.append(a.links("Navigate", [
                 a.link("keys", "Go back", icon="chevron-left")
-            ])
-        ]
+        ]))
+
+        return r
 
     def access_scopes(self):
         return ["auth_admin"]
 
     @coroutine
-    def update(self, key_data):
+    def update_api_key(self, **kwargs):
+        keys = self.application.keys
+
+        key_id = self.context.get("key_id")
+
+        try:
+            key = yield keys.get_key(self.gamespace, key_id)
+        except KeyNotFound:
+            raise a.ActionError("No such key")
+
+        key_name = key.name
+        api_type = apis.api_types.get(key_name)
+
+        if not api_type:
+            raise a.ActionError("No such type of key: {0}".format(key_name))
+
+        api = api_type(self.application.cache)
+
+        if not api.has_private_key():
+            raise a.ActionError("This type of key is not supported")
+
+        try:
+            key_data = yield keys.get_key_decoded(self.gamespace, key_id)
+        except KeyNotFound:
+            raise a.ActionError("No such key")
+
+        private_key = yield api.get_private_key(self.gamespace, data=key_data)
+        private_key.update(**kwargs)
+        new_data = private_key.dump()
+
+        try:
+            yield keys.update_key_data(self.gamespace, key_id, new_data)
+        except KeyDataError as e:
+            raise a.ActionError("Failed to update a key: " + e.message)
+
+        raise a.Redirect("key",
+                         message="Key has been updated",
+                         key_id=key_id)
+
+    @coroutine
+    def update_raw_key(self, key_data):
 
         try:
             key_data = ujson.loads(key_data)
@@ -810,7 +878,7 @@ class KeysController(a.AdminController):
             ]),
             a.links("Navigate", [
                 a.link("index", "Go back", icon="chevron-left"),
-                a.link("new_key", "Add new key", icon="plus"),
+                a.link("new_api_key", "Add new key", icon="plus"),
             ])
         ]
 
@@ -953,7 +1021,7 @@ class NewGamespaceNameController(a.AdminController):
         return ["auth_gamespace_admin"]
 
 
-class NewKeyController(a.AdminController):
+class NewRawKeyController(a.AdminController):
 
     @coroutine
     def get(self):
@@ -982,9 +1050,9 @@ class NewKeyController(a.AdminController):
         return [
             a.breadcrumbs([
                 a.link("keys", "Keys")
-            ], "New key"),
+            ], "New raw key"),
 
-            a.form("Add new key", fields={
+            a.form("Add new raw key", fields={
                 "key_name": a.field("Key Name", "text", "primary", "non-empty", order=1),
                 "key_data": a.field("Key Data, will be encrypted", "json", "primary", "non-empty", multiline=8, order=2)
             }, methods={
@@ -995,6 +1063,115 @@ class NewKeyController(a.AdminController):
                 a.link("keys", "Go back", icon="chevron-left")
             ])
         ]
+
+    def access_scopes(self):
+        return ["auth_admin"]
+
+
+class NewAPIKeyController(a.AdminController):
+
+    @coroutine
+    def get(self):
+        key_types = {
+            api_type_name: api_type_name
+            for api_type_name, api_type in apis.api_types.iteritems()
+        }
+
+        raise Return({
+            "key_types": key_types
+        })
+
+    @coroutine
+    def proceed(self, key_type):
+        keys = self.application.keys
+
+        api_types = apis.api_types
+        api_type = api_types.get(key_type)
+
+        if not api_type:
+            raise a.ActionError("No such key type")
+
+        api = api_type(self.application.cache)
+
+        if not api.has_private_key():
+            raise a.ActionError("Bad kay type")
+
+        try:
+            key = yield keys.find_key(self.gamespace, key_type)
+        except KeyDataError as e:
+            raise a.ActionError("Failed to lookup a key: " + e.message)
+        except KeyNotFound as e:
+            pass
+        else:
+            raise a.Redirect("key", message="This key already exists", key_id=key.key_id)
+
+        private_key = api.new_private_key(None)
+
+        raise Return({
+            "private_key": private_key,
+            "key_type": key_type,
+            "private_key_data": {}
+        })
+
+    @coroutine
+    def create(self, **kwargs):
+
+        keys = self.application.keys
+
+        key_type = self.context.get("key_type")
+
+        api_types = apis.api_types
+        api_type = api_types.get(key_type)
+
+        if not api_type:
+            raise a.ActionError("No such key type")
+
+        api = api_type(self.application.cache)
+
+        if not api.has_private_key():
+            raise a.ActionError("Bad kay type")
+
+        private_key = api.new_private_key(None)
+        private_key.update(**kwargs)
+
+        key_data = private_key.dump()
+
+        try:
+            key_id = yield keys.add_key(self.gamespace, key_type, key_data)
+        except KeyDataError as e:
+            raise a.ActionError("Failed to create a key: " + e.message)
+
+        raise a.Redirect("key", message="New key has been created", key_id=key_id)
+
+    def render(self, data):
+
+        r = [
+            a.breadcrumbs([
+                a.link("keys", "Keys")
+            ], "New API key")
+        ]
+
+        private_key = data.get("private_key")
+
+        if private_key:
+            key_type = data.get("key_type")
+
+            r.append(a.form("New key: {0}".format(key_type), fields=private_key.render(), methods={
+                "create": a.method("Create", "primary")
+            }, data=private_key.get(), key_type=key_type))
+        else:
+            r.append(a.form("Select the key type", fields={
+                "key_type": a.field("Key Type", "select", "primary", "non-empty", order=1, values=data["key_types"]),
+            }, methods={
+                "proceed": a.method("Proceed", "primary")
+            }, data=data))
+
+        r.append(a.links("Navigate", [
+            a.link("keys", "Go back", icon="chevron-left"),
+            a.link("new_raw_key", "Create a raw key", icon="plus"),
+        ]))
+
+        return r
 
     def access_scopes(self):
         return ["auth_admin"]

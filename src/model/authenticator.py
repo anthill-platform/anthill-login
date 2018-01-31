@@ -22,7 +22,7 @@ class Authenticator(Model):
         self.credential_type = credential_type
 
     @abc.abstractmethod
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
 
         """
         Does the authorization. Returns `AuthenticationResult` instance.
@@ -54,7 +54,7 @@ class AuthoritativeAuthenticator(Authenticator):
         super(AuthoritativeAuthenticator, self).__init__(application, credential_type)
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
         try:
             credential, username, password = args["credential"], args["username"], args["key"]
         except KeyError:
@@ -98,7 +98,7 @@ class AccessTokenAuthenticator(AuthoritativeAuthenticator):
         super(AccessTokenAuthenticator, self).__init__(application, "token")
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
 
         token_cache = self.application.token_cache
 
@@ -137,7 +137,7 @@ class AnonymousAuthenticator(AuthoritativeAuthenticator):
         super(AnonymousAuthenticator, self).__init__(application, "anonymous")
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
         try:
             result = yield AuthoritativeAuthenticator.authorize(
                 self,
@@ -197,13 +197,14 @@ class DevAuthenticator(AuthoritativeAuthenticator):
         super(DevAuthenticator, self).__init__(application, "dev")
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
         try:
             result = yield AuthoritativeAuthenticator.authorize(
                 self,
                 gamespace,
                 args,
-                db=db)
+                db=db,
+                env=env)
 
         except UserNotFound:
             raise AuthenticationError("bad_username_password")

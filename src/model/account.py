@@ -541,7 +541,8 @@ class AccountModel(Model):
                 result = yield credential_authorizer.authorize(
                     gamespace_id,
                     args,
-                    db=db)
+                    db=db,
+                    env=env)
 
             except authenticator.AuthenticationError as e:
 

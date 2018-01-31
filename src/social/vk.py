@@ -10,7 +10,7 @@ import logging
 import urllib
 
 from common.social import APIError
-from common.social.vk import VKAPI
+from common.social.apis import VKAPI
 
 
 CREDENTIAL_TYPE = "vk"
@@ -18,11 +18,11 @@ CREDENTIAL_TYPE = "vk"
 
 class VKAuthenticator(SocialAuthenticator, VKAPI):
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
+        SocialAuthenticator.__init__(self, application, VKAPI.NAME)
         VKAPI.__init__(self, None)
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
 
         try:
             code = args["code"]

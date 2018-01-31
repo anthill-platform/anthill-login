@@ -9,7 +9,7 @@ from . import SocialAuthenticator
 import logging
 
 from common.social import APIError
-from common.social.steam import SteamAPI, SteamPrivateKey
+from common.social.apis import SteamAPI
 
 
 CREDENTIAL_TYPE = "steam"
@@ -17,11 +17,11 @@ CREDENTIAL_TYPE = "steam"
 
 class SteamAuthenticator(SocialAuthenticator, SteamAPI):
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
+        SocialAuthenticator.__init__(self, application, SteamAPI.NAME)
         SteamAPI.__init__(self, None)
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
         try:
             ticket = args["ticket"]
             app_id = args["app_id"]

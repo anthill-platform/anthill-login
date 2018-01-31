@@ -10,7 +10,7 @@ import logging
 import urllib
 
 from common.social import APIError
-from common.social.google import GoogleAPI, GooglePrivateKey
+from common.social.apis import GoogleAPI
 
 
 CREDENTIAL_TYPE = "google"
@@ -18,11 +18,11 @@ CREDENTIAL_TYPE = "google"
 
 class GoogleAuthenticator(SocialAuthenticator, GoogleAPI):
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
+        SocialAuthenticator.__init__(self, application, GoogleAPI.NAME)
         GoogleAPI.__init__(self, None)
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
         try:
             code = args["code"]
             redirect_uri = args["redirect_uri"]

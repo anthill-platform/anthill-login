@@ -18,7 +18,7 @@ Login service allows to authenticate a player in a different ways.
 ### `anonymous`
 A special way to authenticate without asking a player for usernames and passwords.
 In order to auntenticate, client application randomly generates unique username 
-and password, and stores it secure storage locally.
+and password, and stores it in secure storage locally.
 
 Is there's no such username, a new one will be created.
 
@@ -59,10 +59,11 @@ To enable this feature, please do the following:
 1. Create the Web Application <a href="https://console.developers.google.com/apis/credentials/oauthclient">OAuth Client ID</a> 
 at the Google API Console;
 2. Add the application website (for example, `http(s)://example.com/`) into the `Authorized redirect URIs` list.
-3. Download a client secret JSON file;
-4. Open the Anthill Admin tool and select the Login service;
-5. Select the section "Keys" and click "Add New Key";
-6. Type in `google` as a Key Name, and paste client secret, downloaded before, as a Key Data.
+3. Open the Anthill Admin tool and select the Login service;
+4. Select the section "Keys" and click "Add New Key";
+5. Select `google` as Key Type, click Proceed
+6. Fill Client ID and Client Secret fields according to your credentials:
+<img src="https://user-images.githubusercontent.com/1666014/35532809-3715df0a-0544-11e8-928f-24b8987c0314.png" width="330">
 
 After these steps, login using google accounts will be available.
 
@@ -84,20 +85,11 @@ To enable this feature, please do the following:
 at the Facebook Developers section;
 2. Add the application website (for example, `http(s)://example.com/`) 
 into the `Valid OAuth redirect URIs` section (under Facebook Login product);
-3. Create such JSON object:
-
-```json
-{
-    "app-id": "<app-id>",
-    "app-secret": "<app-secret>"
-}
-```
-
-And replace `<app-id>` and `<app-secret>` with the App ID and App Secret respectively;
-
-4. Open the Anthill Admin tool and select the Login service;
-5. Select the section "Keys" and click "Add New Key";
-6. Type in `facebook` as a Key Name, and paste JSON object, created before, as a Key Data.
+3. Open the Anthill Admin tool and select the Login service;
+4. Select the section "Keys" and click "Add New Key";
+5. Select in `facebook` as a Key Type.
+6. Fill the App ID and App Secret respectively:
+<img src="https://user-images.githubusercontent.com/1666014/35532940-9599a318-0544-11e8-95ed-bd6dcb655a67.png" width="330">
 
 After these steps, login using facebook accounts will be available.
 
@@ -119,22 +111,13 @@ To enable this feature, please do the following:
 at the Developers section;
 2. Add the application website (for example, `http(s)://example.com/`) 
 into the `Authorized redirect URI`;
-3. Create such JSON object:
+3. Open the Anthill Admin tool and select the Login service;
+4. Select the section "Keys" and click "Add New Key";
+5. Type in `vk` as a Key Type;
+6. Fill Application ID and Secure Key respectively:
+<img src="https://user-images.githubusercontent.com/1666014/35533027-e9352a38-0544-11e8-8590-cf256c00712f.png" width="330">
 
-```json
-{
-    "client_id": "<client_id>",
-    "client_secret": "<client_secret>"
-}
-```
-
-And replace `<client_id>` and `<client_secret>` with the Application ID and Secure key respectively;
-
-4. Open the Anthill Admin tool and select the Login service;
-5. Select the section "Keys" and click "Add New Key";
-6. Type in `vk` as a Key Name, and paste JSON object, created before, as a Key Data.
-
-After these steps, login using facebook accounts will be available.
+After these steps, login using VK accounts will be available.
 
 These arguments are expected during <a href="#authenticate">authentication</a>:
 
@@ -154,6 +137,8 @@ This way may look complicated, however it can be described in a few steps:
 2. At the return, you will have such: `publicKeyUrl`, `signature`, `salt`  and `timestamp`;
 3. Pass them respectively as the expected arguments.
 
+After these steps, login using gamecenter accounts will be available.
+
 These arguments are expected during <a href="#authenticate">authentication</a>:
 
 | Argument         | Description                                   |
@@ -172,20 +157,13 @@ A way to authenticate using a Steam Account.
 To enable this feature, a WebAPI key should be used:
 
 1. Create a <a href="https://partner.steamgames.com/documentation/webapi#creating">WebAPI key</a>;
-2. Create such JSON object:
+2. Open the Anthill Admin tool and select the Login service;
+3. Select the section "Keys" and click "Add New Key";
+4. Select `steam` as a Key Type;
+5. Fill Steam Game ID and Encrypted App Ticket Key respectively:
+<img src="https://user-images.githubusercontent.com/1666014/35533153-4618bd28-0545-11e8-8c9e-e4a15ca97d72.png" width="330">
 
-```json
-{
-    "app_id": "<app_id>",
-    "key": "<key>"
-}
-```
-
-And replace `<app_id>` and `<key>` with the Application ID (`app_id.txt`) and WebAPI key respectively;
-
-3. Open the Anthill Admin tool and select the Login service;
-4. Select the section "Keys" and click "Add New Key";
-5. Type in `steam` as a Key Name, and paste JSON object, created before, as a Key Data.
+After these steps, login using steam accounts will be available.
 
 These arguments are expected during <a href="#authenticate">authentication</a>:
 
@@ -193,6 +171,27 @@ These arguments are expected during <a href="#authenticate">authentication</a>:
 |------------------|-----------------------------------------------|
 | `ticket`         | Session ticket <a href="https://partner.steamgames.com/documentation/auth#client_to_backend_webapi">acquired from Steam API</a>        |
 | `app_id`         | Application ID (`app_id.txt`) to authenticate for        |
+
+### `mailru`
+A way to authenticate using Mail.Ru Games Service (via @Mail.Ru Launcher).
+
+To enable this feature, a Secret should be used:
+
+1. Create a <a href="https://games.mail.ru/dev/games/">Game Project</a>;
+2. Open the Anthill Admin tool and select the Login service;
+3. Select the section "Keys" and click "Add New Key";
+4. Select `mailru` as a Key Type;
+5. Fill Steam Game ID and Secret respectively:
+<img src="https://user-images.githubusercontent.com/1666014/35533600-bbd114b0-0546-11e8-956d-de3a66788313.png" width="330">
+
+After these steps, login using Mail.Ru Games accounts will be available.
+
+These arguments are expected during <a href="#authenticate">authentication</a>:
+
+| Argument         | Description                                   |
+|------------------|-----------------------------------------------|
+| `uid`            | UID from @Mail.Ru Launcher    |
+| `hash`           | OTP hash from @Mail.Ru Launcher        |
 
 # OAuth 2.0
 

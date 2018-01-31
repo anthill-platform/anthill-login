@@ -86,7 +86,8 @@ class AuthServer(common.server.Server):
             "new_gamespace_name": admin.NewGamespaceNameController,
             "gamespace_name": admin.GamespaceNameController,
             "keys": admin.KeysController,
-            "new_key": admin.NewKeyController,
+            "new_api_key": admin.NewAPIKeyController,
+            "new_raw_key": admin.NewRawKeyController,
             "key": admin.KeyController,
             "edit_key": admin.EditKeyController
         }

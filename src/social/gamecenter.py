@@ -15,16 +15,14 @@ from . import SocialAuthenticator
 from common import cached
 
 
-CREDENTIAL_TYPE = "gamecenter"
-
-
 class GameCenterAuthorizer(SocialAuthenticator):
+    TYPE = "gamecenter"
 
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, CREDENTIAL_TYPE)
+        SocialAuthenticator.__init__(self, application, GameCenterAuthorizer.TYPE)
 
     @coroutine
-    def authorize(self, gamespace, args, db=None):
+    def authorize(self, gamespace, args, db=None, env=None):
         try:
             public_key_url = args["public_key"]
             signature = args["signature"]
