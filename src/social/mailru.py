@@ -18,6 +18,7 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
 
     def __init__(self, application):
         SocialAuthenticator.__init__(self, application, MailRuAuthenticator.TYPE)
+        MailRuAPI.__init__(self, None)
 
     @coroutine
     def authorize(self, gamespace, args, db=None, env=None):
