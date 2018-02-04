@@ -68,7 +68,7 @@ These arguments are expected during <a href="API.md#authenticate">authentication
 | `code`           | OAuth 2.0 authentication code.                |
 | `redurect_uri`   | OAuth 2.0 redirect location.                  |
 
-See <a href="#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
+See <a href="API.md#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
 
 # facebook
 
@@ -96,7 +96,7 @@ These arguments are expected during <a href="API.md#authenticate">authentication
 | `code`           | OAuth 2.0 authentication code.                |
 | `redurect_uri`   | OAuth 2.0 redirect location.                  |
 
-See <a href="#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
+See <a href="API.md#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
 
 # vk
 
@@ -124,7 +124,7 @@ These arguments are expected during <a href="API.md#authenticate">authentication
 | `code`           | OAuth 2.0 authentication code.                |
 | `redurect_uri`   | OAuth 2.0 redirect location.                  |
 
-See <a href="#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
+See <a href="API.md#oauth-20">OAuth 2.0</a> section to how obtain these arguments.
 
 # gamecenter
 
