@@ -182,7 +182,7 @@ To enable this feature, a Secret should be used:
 2. Open the Anthill Admin tool and select the Login service;
 3. Select the section "Keys" and click "Add New Key";
 4. Select `mailru` as a Key Type;
-5. Fill Steam Game ID and Secret respectively:
+5. Fill Game ID and Secret respectively:
 
 <img src="https://user-images.githubusercontent.com/1666014/35533600-bbd114b0-0546-11e8-956d-de3a66788313.png" width="330">
 
@@ -192,8 +192,8 @@ These arguments are expected during <a href="API.md#authenticate">authentication
 
 | Argument         | Description                                   |
 |------------------|-----------------------------------------------|
-| `uid`            | UID from @Mail.Ru Launcher    |
-| `hash`           | OTP hash from @Mail.Ru Launcher        |
+| `uid`            | UID received from @Mail.Ru Launcher    |
+| `hash`           | OTP hash received from @Mail.Ru Launcher        |
 
 # token
 
