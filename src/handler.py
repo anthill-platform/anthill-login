@@ -410,6 +410,23 @@ class InternalHandler(object):
             })
 
     @coroutine
+    def get_credential(self, credential_type, account_id):
+        credentials = self.application.credentials
+
+        try:
+            credentials = yield credentials.list_account_credentials(
+                account_id, credential_types=[credential_type])
+        except CredentialError as e:
+            raise InternalError(500, e.message)
+        else:
+            if not credentials:
+                raise InternalError(404, "No such credentials for such account")
+
+            raise Return({
+                "credential": credentials[0]
+            })
+
+    @coroutine
     def new_gamespace(self, name):
 
         gamespaces = self.application.gamespaces
