@@ -62,4 +62,4 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
         raise Return(auth_result)
 
     def social_profile(self):
-        return False
+        return True
