@@ -14,11 +14,12 @@ class CredentialNotFound(Exception):
 
 
 class CredentialError(Exception):
-    def __init__(self, message):
+    def __init__(self, code, message):
+        self.code = code
         self.message = message
 
     def __str__(self):
-        return self.message
+        return str(self.code) + ": " + self.message
 
 
 class CredentialModel(Model):
@@ -60,7 +61,7 @@ class CredentialModel(Model):
                     VALUES (%s, %s);
                 """, credential, account)
         except DatabaseError as e:
-            raise CredentialError("Failed to create credential: " + e.args[1])
+            raise CredentialError(500, "Failed to create credential: " + e.args[1])
 
         logging.info("Account attached '%s'->'%s'.", credential, account)
 
@@ -82,7 +83,7 @@ class CredentialModel(Model):
                     WHERE `credential`=%s AND `account_id`=%s;
                 """, credential, account)
         except DatabaseError as e:
-            raise CredentialError("Failed to detach credential: " + e.args[1])
+            raise CredentialError(500, "Failed to detach credential: " + e.args[1])
 
         logging.info("Account detached '%s' from '%s'.", credential, account)
 
@@ -110,7 +111,7 @@ class CredentialModel(Model):
                     WHERE `credential`=%s;
                 """, credential)
         except DatabaseError as e:
-            raise CredentialError("Failed to list accounts: " + e.args[1])
+            raise CredentialError(500, "Failed to list accounts: " + e.args[1])
 
         raise Return([str(r["account_id"]) for r in result])
 
@@ -132,7 +133,7 @@ class CredentialModel(Model):
                     WHERE `account_id`=%s;
                 """, account_id)
         except DatabaseError as e:
-            raise CredentialError("Failed to list credentials: " + e.args[1])
+            raise CredentialError(500, "Failed to list credentials: " + e.args[1])
 
         if credential_types:
             def _check(c_):
@@ -142,6 +143,28 @@ class CredentialModel(Model):
             result = [c["credential"] for c in result if _check(c)]
         else:
             result = [c["credential"] for c in result]
+
+        raise Return(result)
+
+    @coroutine
+    def list_accounts_by_credentials(self, credentials, db=None, amount_max=500):
+        if not credentials:
+            raise Return([])
+
+        if len(credentials) > amount_max:
+            raise CredentialError(413, "Too many credentials being asked for")
+
+        try:
+            result = yield (db or self.db).query(
+                """
+                    SELECT `account_id`
+                    FROM `account_credentials`
+                    WHERE `credential` IN %s;
+                """, credentials)
+        except DatabaseError as e:
+            raise CredentialError(500, "Failed to get accounts: " + e.args[1])
+
+        result = [r['account_id'] for r in result]
 
         raise Return(result)
 
@@ -161,7 +184,7 @@ class CredentialModel(Model):
                     WHERE `credential`=%s;
                 """, credential)
         except DatabaseError as e:
-            raise CredentialError("Failed to get account: " + e.args[1])
+            raise CredentialError(500, "Failed to get account: " + e.args[1])
 
         if result is None:
             raise CredentialNotFound()

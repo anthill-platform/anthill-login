@@ -13,6 +13,7 @@ import common.sign
 from common.internal import InternalError
 from common.access import scoped, internal
 from common.handler import AuthenticatedHandler, AnthillRequestHandler, JsonHandler
+from common.validate import validate_value, ValidationError
 
 from model.access import ScopesCorrupterError, NoScopesFound
 from model.account import AuthenticationError
@@ -417,7 +418,7 @@ class InternalHandler(object):
             credentials = yield credentials.list_account_credentials(
                 account_id, credential_types=[credential_type])
         except CredentialError as e:
-            raise InternalError(500, e.message)
+            raise InternalError(e.code, e.message)
         else:
             if not credentials:
                 raise InternalError(404, "No such credentials for such account")
@@ -620,9 +621,32 @@ class AccountCredentialsHandler(AuthenticatedHandler):
         try:
             user_credentials = yield credentials.list_account_credentials(self.token.account)
         except CredentialError as e:
-            raise HTTPError(500, e.message)
+            raise HTTPError(e.code, e.message)
 
         self.dumps({
             "credentials": user_credentials,
             "account_id": self.token.account
+        })
+
+
+class AccountIDSByCredentialsHandler(AuthenticatedHandler):
+    @scoped()
+    @coroutine
+    def get(self):
+        credentials = self.application.credentials
+        credentials_data = self.get_argument("credentials")
+
+        try:
+            credentials_data = ujson.loads(credentials_data)
+            credentials_data = validate_value(credentials_data, "json_list_of_strings")
+        except (KeyError, ValueError, ValidationError):
+            raise HTTPError(400, "Corrupted credentials")
+
+        try:
+            account_ids = yield credentials.list_accounts_by_credentials(credentials_data)
+        except CredentialError as e:
+            raise HTTPError(e.code, e.message)
+
+        self.dumps({
+            "account_ids": account_ids
         })

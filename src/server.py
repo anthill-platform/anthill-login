@@ -103,6 +103,8 @@ class AuthServer(common.server.Server):
             (r"/authform", h.AuthAuthenticationHandler),
 
             (r"/credentials", h.AccountCredentialsHandler),
+            (r"/accounts/credentials", h.AccountIDSByCredentialsHandler),
+
             (r"/attach", h.AttachAccountHandler),
             (r"/auth", h.AuthorizeHandler),
             (r"/resolve", h.ResolveConflictHandler),
