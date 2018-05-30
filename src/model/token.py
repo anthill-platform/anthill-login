@@ -3,6 +3,8 @@ import logging
 
 from tornado.gen import coroutine, Return, Task
 from common.options import options
+from common.model import Model
+from common.validate import validate_value, ValidationError
 
 from common.access import AccessToken, AccessTokenCache, INVALIDATION_CHANNEL
 
@@ -11,10 +13,10 @@ import common.access
 import common.sign
 import common.pubsub
 
-from gen import AccessTokenGen
+from common.gen import AccessTokenGenerator
 
 
-class AccessTokenModel(AccessTokenCache):
+class AccessTokenModel(Model, AccessTokenCache):
 
     DEFAULT_NAME = "def"
 
@@ -22,13 +24,7 @@ class AccessTokenModel(AccessTokenCache):
         AccessTokenCache.__init__(self)
 
         self.application = application
-
-        self.publisher = common.pubsub.RabbitMQPublisher(
-            channels=[INVALIDATION_CHANNEL],
-            broker=options.pubsub,
-            name="login-publisher",
-            channel_prefetch_count=options.internal_channel_prefetch_count)
-
+        self.publisher = None
         self.kv = common.keyvalue.KeyValueStorage(
             host=options.tokens_host,
             port=options.tokens_port,
@@ -36,12 +32,21 @@ class AccessTokenModel(AccessTokenCache):
             max_connections=options.tokens_max_connections)
 
     @coroutine
-    def start(self):
-        yield self.publisher.start()
+    def started(self, application):
+        self.publisher = yield self.application.acquire_publisher()
+        yield super(AccessTokenModel, self).started(application)
+
+    def has_delete_account_event(self):
+        return True
 
     @coroutine
-    def release(self):
-        yield self.publisher.release()
+    def accounts_deleted(self, gamespace, accounts, gamespace_only):
+        for account in accounts:
+            yield self.invalidate_account(account)
+
+    @coroutine
+    def subscribe(self):
+        pass
 
     @coroutine
     def __invalidate_uuid__(self, db, account, uuid, affect_names=True):
@@ -102,44 +107,31 @@ class AccessTokenModel(AccessTokenCache):
             mix = list(set(extend_with.scopes) & set(required_scopes))
             token.scopes.extend(mix)
 
-        new_data = AccessTokenGen.refresh(
+        new_data = AccessTokenGenerator.refresh(
             common.sign.TOKEN_SIGNATURE_RSA,
             token,
             force=True)
 
-        yield self.save_token(
-            token.account,
-            token.uuid,
-            new_data["expires"],
-            invalidate=False)
-
+        yield self.save_token(token.account, token.uuid, new_data["expires"], invalidate=False)
         raise Return(new_data)
 
     @coroutine
     def get_uuids(self, account):
         db = self.kv.acquire()
-
         try:
             account_key = "account:" + str(account)
-
             uuids = yield Task(db.hgetall, account_key)
-
             result = {}
-
             for uuid, name in uuids.iteritems():
                 key = "id:" + uuid
                 ttl = yield Task(db.ttl, key)
-
                 if ttl:
                     result[uuid] = {
                         "name": name,
                         "ttl": int(ttl)
                     }
                 else:
-                    yield Task(
-                        db.hdel,
-                        account_key, uuid
-                    )
+                    yield Task(db.hdel, account_key, uuid)
         finally:
             yield db.release()
 
@@ -150,29 +142,21 @@ class AccessTokenModel(AccessTokenCache):
 
         db = self.kv.acquire()
         try:
-
             account_key = "account:" + str(account)
-
             uuids = yield Task(db.hkeys, account_key)
-
             for uuid in uuids:
                 yield self.__invalidate_uuid__(db, account, uuid)
-
         finally:
             yield db.release()
-
         raise Return(True)
 
     @coroutine
     def invalidate_uuid(self, account, uuid):
-
         db = self.kv.acquire()
-
         try:
             result = yield self.__invalidate_uuid__(db, account, uuid)
         finally:
             db.release()
-
         raise Return(result)
 
     @coroutine
@@ -210,7 +194,7 @@ class AccessTokenModel(AccessTokenCache):
         if not (yield self.validate(token)):
             raise TokensError("Token is not valid")
 
-        new_data = AccessTokenGen.refresh(
+        new_data = AccessTokenGenerator.refresh(
             common.sign.TOKEN_SIGNATURE_RSA, token)
 
         yield self.save_token(
@@ -220,9 +204,6 @@ class AccessTokenModel(AccessTokenCache):
             invalidate=False)
 
         raise Return(new_data)
-
-    def subscribe(self):
-        pass
 
     @coroutine
     def validate_db(self, token, db):

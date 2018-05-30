@@ -15,7 +15,7 @@ import common
 
 import authenticator
 
-from gen import AccessTokenGen
+from common.gen import AccessTokenGenerator
 from credential import CredentialNotFound
 from gamespace import GamespaceNotFound
 from access import NoScopesFound
@@ -63,6 +63,30 @@ class AccountModel(Model):
 
     def get_setup_db(self):
         return self.db
+
+    def has_delete_account_event(self):
+        return True
+
+    @coroutine
+    def accounts_deleted(self, gamespace, accounts, gamespace_only):
+        if gamespace_only:
+            return
+
+        try:
+            with (yield self.db.acquire()) as db:
+                yield db.execute(
+                    """
+                        DELETE
+                        FROM `account_credentials`
+                        WHERE `account_id` IN %s
+                    """, accounts)
+                yield db.execute(
+                    """
+                        DELETE FROM `accounts`
+                        WHERE `account_id` IN %s;
+                    """, accounts)
+        except DatabaseError as e:
+            raise AccountError("Failed to delete accounts: " + e.args[1])
 
     @coroutine
     def __import_social_connections__(self, gamespace, credential, username, auth_response):
@@ -213,7 +237,7 @@ class AccountModel(Model):
                 account_mine = accounts[0]
 
                 if resolve is None:
-                    resolve_token = AccessTokenGen.generate(
+                    resolve_token = AccessTokenGenerator.generate(
                         common.sign.TOKEN_SIGNATURE_RSA,
                         ["resolve_conflict"],
                         {
@@ -354,7 +378,7 @@ class AccountModel(Model):
 
         # generate special resolve_token for a user
 
-        resolve_token = AccessTokenGen.generate(
+        resolve_token = AccessTokenGenerator.generate(
             common.sign.TOKEN_SIGNATURE_RSA,
             ["resolve_conflict"],
             {
@@ -775,7 +799,7 @@ class AccountModel(Model):
             # no 'issuer' field - nowhere to check
             additional_containers[AccessToken.ISSUER] = "login"
 
-        res = AccessTokenGen.generate(
+        res = AccessTokenGenerator.generate(
             common.sign.TOKEN_SIGNATURE_RSA,
             allowed_scopes,
             additional_containers,

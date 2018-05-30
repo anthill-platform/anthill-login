@@ -771,6 +771,7 @@ class InvalidateAccountAllController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
+
 class InvalidateAccountUUIDController(a.AdminController):
     @coroutine
     def get(self, uuid, account):

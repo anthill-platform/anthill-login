@@ -50,13 +50,8 @@ class AuthServer(common.server.Server):
         self.passwords = PasswordsModel(self, self.db)
         self.gamespaces = GamespacesModel(self.db, [self.access, self.keys])
 
-    @coroutine
-    def started(self):
-        yield self.tokens.start()
-        yield super(AuthServer, self).started()
-
     def get_models(self):
-        return [self.gamespaces, self.keys, self.accounts, self.access, self.credentials, self.passwords]
+        return [self.gamespaces, self.keys, self.accounts, self.access, self.credentials, self.passwords, self.tokens]
 
     def get_internal_handler(self):
         return h.InternalHandler(self)
