@@ -14,7 +14,6 @@ from model.credential import CredentialNotFound, CredentialIsNotValid, Credentia
 from model.key import KeyDataError, KeyNotFound
 
 
-
 class AccountsController(a.AdminController):
     def render(self, data):
         return [

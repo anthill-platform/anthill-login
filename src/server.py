@@ -111,11 +111,6 @@ class AuthServer(common.server.Server):
     def get_auth_location(self, network):
         raise Return(self.get_host())
 
-    @coroutine
-    def get_gamespace(self, gamespace_name):
-        result = yield self.gamespaces.find_gamespace(gamespace_name)
-        raise Return(result)
-
 
 if __name__ == "__main__":
 
