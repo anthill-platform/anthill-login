@@ -1,49 +1,50 @@
 
+from tornado.gen import coroutine, Return
+from tornado.httpclient import HTTPError
+
+from model.authenticator import AuthenticationResult, AuthenticationError
+from model.key import KeyNotFound
+from . import SocialAuthenticator
+
 import logging
 import urllib
 
-import tornado.httpclient
-from tornado.gen import coroutine, Return
-
+from common.social import APIError
 from common.social.apis import MailRuAPI
-from model import authenticator
-from model.authenticator import AuthenticationResult
-from . import SocialAuthenticator
+
+
+CREDENTIAL_TYPE = "mailru"
 
 
 class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
-
-    GAMES_ROOT_URL = "https://games.mail.ru/app/"
-    TYPE = "mailru"
-
     def __init__(self, application):
-        SocialAuthenticator.__init__(self, application, MailRuAuthenticator.TYPE)
+        SocialAuthenticator.__init__(self, application, MailRuAPI.NAME)
         MailRuAPI.__init__(self, None)
 
     @coroutine
-    def authorize(self, gamespace, args, db=None, env=None):
+    def authorize_mailru_api(self, gamespace, args, db=None, env=None):
         try:
             uid = args["uid"]
             hash = args["hash"]
         except KeyError:
             logging.error("Missing arguments")
-            raise authenticator.AuthenticationError("missing_argument")
+            raise AuthenticationError("missing_argument")
 
         ip_address = env.get("ip_address", None) if env else None
 
         if not ip_address:
-            raise authenticator.AuthenticationError("ip_address required")
+            raise AuthenticationError("ip_address required")
 
         private_key = yield self.get_private_key(gamespace)
 
         sign = self.calculate_signature({
-            "appid": private_key.app_id,
+            "appid": private_key.get_mailru_app_id(),
             "ip": ip_address,
             "hash": hash,
             "uid": uid
         }, private_key)
 
-        gas_url = MailRuAuthenticator.GAMES_ROOT_URL + private_key.app_id + "/gas?" + urllib.urlencode({
+        gas_url = MailRuAPI.MAILRU_API + private_key.mailru_app_id + "/gas?" + urllib.urlencode({
             "uid": uid,
             "hash": hash,
             "ip": ip_address,
@@ -52,8 +53,8 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
 
         try:
             self.client.fetch(gas_url)
-        except tornado.httpclient.HTTPError:
-            raise authenticator.AuthenticationError("forbidden")
+        except HTTPError:
+            raise AuthenticationError("forbidden")
 
         auth_result = AuthenticationResult(credential=self.type(),
                                            username=uid,
@@ -61,5 +62,38 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
 
         raise Return(auth_result)
 
+    @coroutine
+    def authorize_steam_api(self, gamespace, args, db=None, env=None):
+        try:
+            ticket = args["ticket"]
+            app_id = args["app_id"]
+        except KeyError:
+            raise AuthenticationError("missing_argument")
+
+        try:
+            result = yield self.api_auth(gamespace, ticket, app_id)
+        except APIError as e:
+            logging.exception("api error")
+            raise AuthenticationError("API error:" + e.body, e.code)
+        else:
+            auth_result = AuthenticationResult(credential=self.type(),
+                                               username=result.username,
+                                               response=result)
+
+            raise Return(auth_result)
+
+    def authorize(self, gamespace, args, db=None, env=None):
+        """
+        This method can perform two ways of authentication
+          - The mailru one, if "uid" and "hash" arguments are present
+          - The steam one, if "ticket" and "app_id" arguments are present
+        """
+        if "uid" in args and "hash" in args:
+            return self.authorize_mailru_api(gamespace, args, db=db, env=env)
+        if "ticket" in args and "app_id" in args:
+            return self.authorize_steam_api(gamespace, args, db=db, env=env)
+        raise AuthenticationError("missing_argument")
+
+    # noinspection PyMethodMayBeStatic
     def social_profile(self):
         return True

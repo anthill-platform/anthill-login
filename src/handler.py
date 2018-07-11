@@ -113,7 +113,7 @@ class AuthorizeHandler(JsonHandler):
             else:
                 self.write(result["token"])
 
-        except KeyError:
+        except KeyError as e:
             raise HTTPError(
                 400,
                 "Missing mandatory fields")

@@ -1,6 +1,7 @@
 
 from tornado.gen import coroutine, Return
 
+# noinspection PyUnresolvedReferences
 from model import authenticator
 from model.key import KeyNotFound
 from abc import abstractmethod, ABCMeta
