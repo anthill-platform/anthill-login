@@ -140,7 +140,14 @@ function resolve_conflict(method, resolve_with, resolve_token)
 
 function auth_redirect(to, data)
 {
-    $.redirect(to, data, "POST", "");
+    var url = new URL(to);
+
+    for (var key in data)
+    {
+        url.searchParams.set(key, data[key]);
+    }
+
+    document.location.href = url.href;
 }
 
 function render_account(parent, account)
