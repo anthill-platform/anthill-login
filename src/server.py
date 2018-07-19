@@ -56,6 +56,9 @@ class AuthServer(common.server.Server):
     def get_internal_handler(self):
         return h.InternalHandler(self)
 
+    def create_token_cache(self):
+        return self.tokens
+
     def get_metadata(self):
         return {
             "title": "Login",

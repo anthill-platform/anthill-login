@@ -5,12 +5,11 @@ from tornado.testing import gen_test
 # noinspection PyUnresolvedReferences
 from server import AuthServer
 
-import common.testing
-from common import random_string
+from common.testing import ServerTestCase
 import options as _opts
 
 
-class AccountsTestCase(common.testing.ServerTestCase):
+class AccountsTestCase(ServerTestCase):
     @classmethod
     def need_test_db(cls):
         return True

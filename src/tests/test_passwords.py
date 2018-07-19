@@ -6,12 +6,12 @@ from tornado.testing import gen_test
 from server import AuthServer
 from model.password import UserExists, BadNameFormat, BadPassword
 
-import common.testing
+from common.testing import ServerTestCase
 from common import random_string
 import options as _opts
 
 
-class PasswordsTestCase(common.testing.ServerTestCase):
+class PasswordsTestCase(ServerTestCase):
 
     @classmethod
     def need_test_db(cls):
