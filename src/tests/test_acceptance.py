@@ -147,6 +147,37 @@ jqhNID78KIZf+tf5oTHtwG/QsZEAE/ClmCoBL4+VILE=
         self.assertEqual(response["scopes"], ["gamespace_a", "scope_a"])
 
     @gen_test
+    def test_invalidation(self):
+        raw_token1 = yield self.post_success("auth", {
+            "credential": "dev",
+            "username": "test01",
+            "key": "test01",
+            "scopes": "gamespace_a,scope_a",
+            "gamespace": AcceptanceTestCase.TOKEN_GAMESPACE_NAME
+        }, json_response=False)
+
+        yield self.get_success("validate", {
+            "access_token": raw_token1
+        })
+
+        raw_token2 = yield self.post_success("auth", {
+            "credential": "dev",
+            "username": "test01",
+            "key": "test01",
+            "scopes": "gamespace_a,scope_a",
+            "gamespace": AcceptanceTestCase.TOKEN_GAMESPACE_NAME
+        }, json_response=False)
+
+        yield self.get_success("validate", {
+            "access_token": raw_token2
+        })
+
+        # previous token should be dead
+        yield self.get_fail("validate", expected_code=403, query_args={
+            "access_token": raw_token1
+        })
+
+    @gen_test
     def test_extend(self):
         test01 = yield self.post_success("auth", {
             "credential": "dev",
