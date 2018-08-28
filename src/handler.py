@@ -286,7 +286,8 @@ class ExtendHandler(AuthenticatedHandler):
             "token": new_data["key"],
             "expires_in": new_data["expires"],
             "scopes": new_data["scopes"],
-            "account": new_data["account"]
+            "account": new_data["account"],
+            "credential": new_data.get("credential")
         })
 
 
