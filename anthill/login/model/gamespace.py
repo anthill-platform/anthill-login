@@ -1,10 +1,7 @@
-import re
 
-from tornado.gen import coroutine, Return
-
-import common.access
-from common.database import DatabaseError
-from common.model import Model
+from anthill.common import access
+from anthill.common.database import DatabaseError
+from anthill.common.model import Model
 
 
 class GamespaceAdapter(object):
@@ -52,30 +49,27 @@ class GamespacesModel(Model):
     def get_setup_db(self):
         return self.db
 
-    @coroutine
-    def setup_table_gamespace(self):
-        yield self.create_gamespace(
+    async def setup_table_gamespace(self):
+        await self.create_gamespace(
             "Default",
             ["profile_write", "profile", "game", "message_listen", "group", "party", "event", "exec_func_call"])
 
-    @coroutine
-    def setup_table_gamespace_aliases(self):
-        yield self.create_gamespace_alias("root", 1)
+    async def setup_table_gamespace_aliases(self):
+        await self.create_gamespace_alias("root", 1)
 
-    @coroutine
-    def delete_gamespace(self, gamespace_id, db=None):
+    async def delete_gamespace(self, gamespace_id, db=None):
 
         for dependency in self.dependencies:
-            yield dependency.delete_gamespace(gamespace_id)
+            await dependency.delete_gamespace(gamespace_id)
 
         try:
-            yield (db or self.db).query(
+            await (db or self.db).query(
                 """
                     DELETE FROM `gamespace_aliases`
                     WHERE `gamespace_id`=%s;
                 """, gamespace_id)
 
-            yield (db or self.db).query(
+            await (db or self.db).query(
                 """
                     DELETE FROM `gamespace`
                     WHERE `gamespace_id`=%s;
@@ -83,10 +77,9 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to delete a gamespace: " + e.args[1])
 
-    @coroutine
-    def delete_gamespace_alias(self, record_id, db=None):
+    async def delete_gamespace_alias(self, record_id, db=None):
         try:
-            yield (db or self.db).query(
+            await (db or self.db).query(
                 """
                     DELETE FROM `gamespace_aliases`
                     WHERE `record_id`=%s;
@@ -94,10 +87,9 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to delete a gamespace name: " + e.args[1])
 
-    @coroutine
-    def find_gamespace(self, gamespace_name, db=None):
+    async def find_gamespace(self, gamespace_name, db=None):
         try:
-            gamespace = yield (db or self.db).get(
+            gamespace = await (db or self.db).get(
                 """
                     SELECT `gamespace_id`
                     FROM `gamespace_aliases`
@@ -109,12 +101,11 @@ class GamespacesModel(Model):
         if gamespace is None:
             raise GamespaceNotFound()
 
-        raise Return(str(gamespace["gamespace_id"]))
+        return str(gamespace["gamespace_id"])
 
-    @coroutine
-    def find_gamespace_info(self, gamespace_alias, db=None):
+    async def find_gamespace_info(self, gamespace_alias, db=None):
         try:
-            gamespace = yield (db or self.db).get(
+            gamespace = await (db or self.db).get(
                 """
                     SELECT n.`gamespace_id`, g.`gamespace_title`
                     FROM `gamespace_aliases` AS n
@@ -128,12 +119,11 @@ class GamespacesModel(Model):
         if gamespace is None:
             raise GamespaceNotFound()
 
-        raise Return(GamespaceAdapter(gamespace))
+        return GamespaceAdapter(gamespace)
 
-    @coroutine
-    def find_gamespace_alias(self, name, db=None):
+    async def find_gamespace_alias(self, name, db=None):
         try:
-            alias = yield (db or self.db).get(
+            alias = await (db or self.db).get(
                 """
                     SELECT *
                     FROM `gamespace_aliases`
@@ -145,12 +135,11 @@ class GamespacesModel(Model):
         if alias is None:
             raise NoSuchGamespaceAlias()
 
-        raise Return(GamespaceAliasAdapter(alias))
+        return GamespaceAliasAdapter(alias)
 
-    @coroutine
-    def get_gamespace(self, gamespace_id, db=None):
+    async def get_gamespace(self, gamespace_id, db=None):
         try:
-            gamespace = yield (db or self.db).get(
+            gamespace = await (db or self.db).get(
                 """
                     SELECT *
                     FROM `gamespace`
@@ -162,12 +151,11 @@ class GamespacesModel(Model):
         if gamespace is None:
             raise GamespaceNotFound()
 
-        raise Return(GamespaceAdapter(gamespace))
+        return GamespaceAdapter(gamespace)
 
-    @coroutine
-    def get_gamespace_alias(self, record_id, db=None):
+    async def get_gamespace_alias(self, record_id, db=None):
         try:
-            alias = yield (db or self.db).get(
+            alias = await (db or self.db).get(
                 """
                     SELECT *
                     FROM `gamespace_aliases`
@@ -179,13 +167,12 @@ class GamespacesModel(Model):
         if alias is None:
             raise NoSuchGamespaceAlias()
 
-        raise Return(GamespaceAliasAdapter(alias))
+        return GamespaceAliasAdapter(alias)
 
-    @coroutine
-    def get_gamespace_access_scopes(self, gamespace_id, db=None):
+    async def get_gamespace_access_scopes(self, gamespace_id, db=None):
 
         try:
-            gamespace_scopes = yield (db or self.db).get(
+            gamespace_scopes = await (db or self.db).get(
                 """
                     SELECT `gamespace_scopes`
                     FROM `gamespace`
@@ -197,12 +184,11 @@ class GamespacesModel(Model):
         if gamespace_scopes is None:
             raise GamespaceNotFound()
 
-        raise Return(gamespace_scopes["gamespace_scopes"])
+        return gamespace_scopes["gamespace_scopes"]
 
-    @coroutine
-    def list_all_aliases(self, db=None):
+    async def list_all_aliases(self, db=None):
         try:
-            gamespaces = yield (db or self.db).query(
+            gamespaces = await (db or self.db).query(
                 """
                     SELECT *
                     FROM `gamespace_aliases`;
@@ -210,12 +196,11 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to list aliases: " + e.args[1])
 
-        raise Return([GamespaceAliasAdapter(alias) for alias in gamespaces])
+        return [GamespaceAliasAdapter(alias) for alias in gamespaces]
 
-    @coroutine
-    def list_gamespace_aliases(self, gamespace_id, db=None):
+    async def list_gamespace_aliases(self, gamespace_id, db=None):
         try:
-            gamespaces = yield (db or self.db).query(
+            gamespaces = await (db or self.db).query(
                 """
                     SELECT *
                     FROM `gamespace_aliases`
@@ -224,12 +209,11 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to get a names list: " + e.args[1])
 
-        raise Return([GamespaceAliasAdapter(alias) for alias in gamespaces])
+        return [GamespaceAliasAdapter(alias) for alias in gamespaces]
 
-    @coroutine
-    def list_gamespaces(self, db=None):
+    async def list_gamespaces(self, db=None):
         try:
-            gamespaces = yield (db or self.db).query(
+            gamespaces = await (db or self.db).query(
                 """
                     SELECT *
                     FROM `gamespace`;
@@ -237,15 +221,14 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to list gamespaces: " + e.args[1])
 
-        raise Return([GamespaceAdapter(gamespace) for gamespace in gamespaces])
+        return [GamespaceAdapter(gamespace) for gamespace in gamespaces]
 
-    @coroutine
-    def create_gamespace(self, gamespace_title, gamespace_scopes, db=None):
+    async def create_gamespace(self, gamespace_title, gamespace_scopes, db=None):
 
-        scopes = common.access.serialize_scopes(gamespace_scopes)
+        scopes = access.serialize_scopes(gamespace_scopes)
 
         try:
-            gamespace_id = yield (db or self.db).insert(
+            gamespace_id = await (db or self.db).insert(
                 """
                     INSERT INTO `gamespace`
                     (`gamespace_title`, `gamespace_scopes`)
@@ -254,20 +237,19 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to create a gamespace: " + e.args[1])
 
-        raise Return(gamespace_id)
+        return gamespace_id
 
-    @coroutine
-    def create_gamespace_alias(self, name, gamespace_id, db=None):
+    async def create_gamespace_alias(self, name, gamespace_id, db=None):
 
         try:
-            yield self.find_gamespace_alias(name)
+            await self.find_gamespace_alias(name)
         except NoSuchGamespaceAlias:
             pass
         else:
             raise GamespaceError("Such name already exists.")
 
         try:
-            record_id = yield (db or self.db).insert(
+            record_id = await (db or self.db).insert(
                 """
                     INSERT INTO `gamespace_aliases`
                     (`gamespace_name`, `gamespace_id`)
@@ -276,22 +258,21 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to create an alias: " + e.args[1])
 
-        raise Return(record_id)
+        return record_id
 
-    @coroutine
-    def set_gamespace_access_scopes(self, gamespace_id, scopes, db=None):
+    async def set_gamespace_access_scopes(self, gamespace_id, scopes, db=None):
 
-        scopes = common.access.serialize_scopes(scopes)
+        scopes = access.serialize_scopes(scopes)
         try:
             gamespace_id = int(gamespace_id)
         except ValueError:
             raise GamespaceError("gamespace_id expected to be a number.")
 
         try:
-            yield self.get_gamespace_access_scopes(gamespace_id)
+            await self.get_gamespace_access_scopes(gamespace_id)
         except GamespaceNotFound:
             try:
-                yield (db or self.db).insert(
+                await (db or self.db).insert(
                     """
                         INSERT INTO `gamespace`
                         (gamespace_id, `gamespace_scopes`)
@@ -301,7 +282,7 @@ class GamespacesModel(Model):
                 raise GamespaceError("Failed to create a gamespace: " + e.args[1])
         else:
             try:
-                yield (db or self.db).insert(
+                await (db or self.db).insert(
                     """
                         UPDATE `gamespace`
                         SET `gamespace_scopes`=%s
@@ -310,13 +291,12 @@ class GamespacesModel(Model):
             except DatabaseError as e:
                 raise GamespaceError("Failed to create a gamespace: " + e.args[1])
 
-    @coroutine
-    def update_gamespace(self, gamespace_id, gamespace_title, gamespace_scopes, db=None):
+    async def update_gamespace(self, gamespace_id, gamespace_title, gamespace_scopes, db=None):
 
-        scopes = common.access.serialize_scopes(gamespace_scopes)
+        scopes = access.serialize_scopes(gamespace_scopes)
 
         try:
-            yield (db or self.db).execute(
+            await (db or self.db).execute(
                 """
                     UPDATE `gamespace`
                     SET `gamespace_title`=%s, `gamespace_scopes`=%s
@@ -325,10 +305,9 @@ class GamespacesModel(Model):
         except DatabaseError as e:
             raise GamespaceError("Failed to update a gamespace: " + e.args[1])
 
-    @coroutine
-    def update_gamespace_name(self, record_id, name, gamespace_id, db=None):
+    async def update_gamespace_name(self, record_id, name, gamespace_id, db=None):
         try:
-            yield (db or self.db).execute(
+            await (db or self.db).execute(
                 """
                     UPDATE `gamespace_aliases`
                     SET `gamespace_name`=%s, `gamespace_id`=%s

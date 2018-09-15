@@ -1,5 +1,5 @@
 
-from common.options import define
+from anthill.common.options import define
 
 # Main
 

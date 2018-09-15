@@ -1,14 +1,11 @@
 
-from tornado.gen import coroutine, Return
-
-from model.authenticator import AuthenticationResult, AuthenticationError
-from model.key import KeyNotFound
+from .. model.authenticator import AuthenticationResult, AuthenticationError
 from . import SocialAuthenticator
 
 import logging
 
-from common.social import APIError
-from common.social.apis import SteamAPI
+from anthill.common.social import APIError
+from anthill.common.social.apis import SteamAPI
 
 
 CREDENTIAL_TYPE = "steam"
@@ -19,8 +16,7 @@ class SteamAuthenticator(SocialAuthenticator, SteamAPI):
         SocialAuthenticator.__init__(self, application, SteamAPI.NAME)
         SteamAPI.__init__(self, None)
 
-    @coroutine
-    def authorize(self, gamespace, args, db=None, env=None):
+    async def authorize(self, gamespace, args, db=None, env=None):
         try:
             ticket = args["ticket"]
             app_id = args["app_id"]
@@ -28,7 +24,7 @@ class SteamAuthenticator(SocialAuthenticator, SteamAPI):
             raise AuthenticationError("missing_argument")
 
         try:
-            result = yield self.api_auth(gamespace, ticket, app_id)
+            result = await self.api_auth(gamespace, ticket, app_id)
         except APIError as e:
             logging.exception("api error")
             raise AuthenticationError("API error:" + e.body, e.code)
@@ -37,7 +33,7 @@ class SteamAuthenticator(SocialAuthenticator, SteamAPI):
                                                username=result.username,
                                                response=result)
 
-            raise Return(auth_result)
+            return auth_result
 
     def social_profile(self):
         return True

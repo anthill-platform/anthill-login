@@ -1,14 +1,13 @@
+
+from anthill.common import access
+from anthill.common.options import options
+from anthill.common.database import DatabaseError
+from anthill.common.model import Model
+
 import hashlib
 import re
-import common.access
 import hmac
 import base64
-
-
-from tornado.gen import coroutine, Return
-from common.options import options
-from common.database import DatabaseError
-from common.model import Model
 
 
 class PasswordAdapter(object):
@@ -22,7 +21,8 @@ class PasswordsModel(Model):
     NAME_PATTERN = re.compile("^([a-zA-Z0-9_-]+)$")
     ALGORITHMS = {
         "HMACSHA256": lambda c, password, salt: base64.b64encode(
-            hmac.new(key=str(c + salt), msg=str(password), digestmod=hashlib.sha256).digest()),
+            hmac.new(key=bytes(c + salt, "utf-8"), msg=password.encode("utf-8"),
+                     digestmod=hashlib.sha256).digest()).decode(),
         "2SHA256": lambda c, password, salt: hashlib.sha256(
             hashlib.sha256(password + salt).hexdigest()).hexdigest(),
         "SHA256": lambda c, password, salt: hashlib.sha256(
@@ -44,19 +44,17 @@ class PasswordsModel(Model):
     def get_setup_db(self):
         return self.db
 
-    @coroutine
-    def setup_table_credential_passwords(self):
-        yield self.create("dev:root", "anthill")
+    async def setup_table_credential_passwords(self):
+        await self.create("dev:root", "anthill")
 
-    @coroutine
-    def update(self, username, password, db=None):
+    async def update(self, username, password, db=None):
         """
         Updates a record in password database (should exist)
         """
         self.validate(username)
 
         try:
-            result = yield (db or self.db).execute(
+            result = await (db or self.db).execute(
                 """
                     UPDATE `credential_passwords`
                     SET `password`=%s, `algorithm`=%s
@@ -67,10 +65,9 @@ class PasswordsModel(Model):
         except DatabaseError as e:
             raise PasswordError("Failed to update a password: " + e.args[1])
 
-        raise Return(result)
+        return result
 
-    @coroutine
-    def create(self, username, password, db=None):
+    async def create(self, username, password, db=None):
         """
         Creates a new password record for a credential, if not exists. Otherwise, UserExists raised.
         :returns associated account with this credential. If not exists, it gets allocated.
@@ -81,14 +78,14 @@ class PasswordsModel(Model):
             raise BadNameFormat()
 
         try:
-            yield self.get(username)
+            await self.get(username)
         except UserNotFound:
             pass
         else:
             raise UserExists()
 
         try:
-            yield (db or self.db).insert(
+            await (db or self.db).insert(
                 """
                     INSERT INTO `credential_passwords`
                     (`credential`, `password`, `algorithm`)
@@ -99,17 +96,16 @@ class PasswordsModel(Model):
         except DatabaseError as e:
             raise PasswordError("Failed to create a password: " + e.args[1])
 
-        account_id = yield self.app.accounts.lookup_account(username)
+        account_id = await self.app.accounts.lookup_account(username)
 
-        raise Return(account_id)
+        return account_id
 
-    @coroutine
-    def delete(self, credential, db=None):
+    async def delete(self, credential, db=None):
         """
         Deletes a password for a credential.
         """
         try:
-            result = yield (db or self.db).execute(
+            result = await (db or self.db).execute(
                 """
                     DELETE FROM `credential_passwords`
                     WHERE `credential`=%s;
@@ -117,17 +113,16 @@ class PasswordsModel(Model):
         except DatabaseError as e:
             raise PasswordError("Failed to delete a password: " + e.args[1])
 
-        raise Return(result)
+        return result
 
-    @coroutine
-    def get(self, credential, db=None):
+    async def get(self, credential, db=None):
         """
         Looks for a password for a credential.
         """
         self.validate(credential)
 
         try:
-            result = yield (db or self.db).get(
+            result = await (db or self.db).get(
                 """
                     SELECT `password`, `algorithm`
                     FROM `credential_passwords`
@@ -139,17 +134,16 @@ class PasswordsModel(Model):
         if not result:
             raise UserNotFound()
 
-        raise Return(PasswordAdapter(result))
+        return PasswordAdapter(result)
 
-    @coroutine
-    def login(self, credential, password, db=None):
+    async def login(self, credential, password, db=None):
         """
         Proceeds an authorization for an account. If password is valid, nothing happens.
         :raises UserNotFound
         :raises BadPassword
         """
 
-        account = yield self.get(credential, db=db)
+        account = await self.get(credential, db=db)
 
         if account is None:
             raise UserNotFound()
@@ -157,7 +151,7 @@ class PasswordsModel(Model):
         account_password = account.password
 
         if self.__generate_password__(credential, account.algorithm, password) == account_password:
-            raise Return(account)
+            return account
 
         raise BadPassword()
 
@@ -167,7 +161,7 @@ class PasswordsModel(Model):
         :returns a list of two elements [credential_type, username]
         :raises BadNameFormat
         """
-        parsed = common.access.parse_account(credential)
+        parsed = access.parse_account(credential)
 
         if not parsed:
             raise BadNameFormat()

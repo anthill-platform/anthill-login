@@ -1,16 +1,15 @@
 
-from tornado.gen import coroutine, Return
 from tornado.httpclient import HTTPError
 
-from model.authenticator import AuthenticationResult, AuthenticationError
-from model.key import KeyNotFound
+from .. model.authenticator import AuthenticationResult, AuthenticationError
+from .. model.key import KeyNotFound
 from . import SocialAuthenticator
 
 import logging
-import urllib
+from urllib import parse
 
-from common.social import APIError
-from common.social.apis import MailRuAPI
+from anthill.common.social import APIError
+from anthill.common.social.apis import MailRuAPI
 
 
 CREDENTIAL_TYPE = "mailru"
@@ -21,8 +20,7 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
         SocialAuthenticator.__init__(self, application, MailRuAPI.NAME)
         MailRuAPI.__init__(self, None)
 
-    @coroutine
-    def authorize_mailru_api(self, gamespace, args, db=None, env=None):
+    async def authorize_mailru_api(self, gamespace, args, db=None, env=None):
         try:
             uid = args["uid"]
             hash = args["hash"]
@@ -35,7 +33,7 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
         if not ip_address:
             raise AuthenticationError("ip_address required")
 
-        private_key = yield self.get_private_key(gamespace)
+        private_key = await self.get_private_key(gamespace)
 
         sign = self.calculate_signature({
             "appid": private_key.get_mailru_app_id(),
@@ -44,7 +42,7 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
             "uid": uid
         }, private_key)
 
-        gas_url = MailRuAPI.MAILRU_API + private_key.mailru_app_id + "/gas?" + urllib.urlencode({
+        gas_url = MailRuAPI.MAILRU_API + private_key.mailru_app_id + "/gas?" + parse.urlencode({
             "uid": uid,
             "hash": hash,
             "ip": ip_address,
@@ -60,10 +58,9 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
                                            username=uid,
                                            response=None)
 
-        raise Return(auth_result)
+        return auth_result
 
-    @coroutine
-    def authorize_steam_api(self, gamespace, args, db=None, env=None):
+    async def authorize_steam_api(self, gamespace, args, db=None, env=None):
         try:
             ticket = args["ticket"]
             app_id = args["app_id"]
@@ -71,7 +68,7 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
             raise AuthenticationError("missing_argument")
 
         try:
-            result = yield self.api_auth(gamespace, ticket, app_id)
+            result = await self.api_auth(gamespace, ticket, app_id)
         except APIError as e:
             logging.exception("api error")
             raise AuthenticationError("API error:" + e.body, e.code)
@@ -80,7 +77,7 @@ class MailRuAuthenticator(SocialAuthenticator, MailRuAPI):
                                                username=result.username,
                                                response=result)
 
-            raise Return(auth_result)
+            return auth_result
 
     def authorize(self, gamespace, args, db=None, env=None):
         """

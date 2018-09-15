@@ -1,12 +1,11 @@
+
+from anthill.common import access
+from anthill.common.database import DatabaseError
+from anthill.common.model import Model
+
+from . import authenticator
+
 import logging
-
-from tornado.gen import coroutine, Return
-
-import common.access
-from common.database import DatabaseError
-from common.model import Model
-
-import authenticator
 
 
 class CredentialNotFound(Exception):
@@ -37,24 +36,22 @@ class CredentialModel(Model):
     def get_setup_tables(self):
         return ["account_credentials"]
 
-    @coroutine
-    def setup_table_account_credentials(self):
-        yield self.attach("dev:root", 1)
+    async def setup_table_account_credentials(self):
+        await self.attach("dev:root", 1)
 
     def get_setup_db(self):
         return self.db
 
-    @coroutine
-    def attach(self, credential, account, db=None):
+    async def attach(self, credential, account, db=None):
         """
         Attaches a credential to an account.
         """
 
-        if not common.access.parse_account(credential):
+        if not access.parse_account(credential):
             raise CredentialIsNotValid()
 
         try:
-            yield (db or self.db).insert(
+            await (db or self.db).insert(
                 """
                     INSERT INTO `account_credentials`
                     (`credential`, `account_id`)
@@ -65,8 +62,7 @@ class CredentialModel(Model):
 
         logging.info("Account attached '%s'->'%s'.", credential, account)
 
-    @coroutine
-    def detach(self, credential, account, accounts_data=None, db=None):
+    async def detach(self, credential, account, accounts_data=None, db=None):
         """
         Detaches a credential from account.
         :param credential: A credential
@@ -77,7 +73,7 @@ class CredentialModel(Model):
         """
 
         try:
-            yield (db or self.db).execute(
+            await (db or self.db).execute(
                 """
                     DELETE FROM `account_credentials`
                     WHERE `credential`=%s AND `account_id`=%s;
@@ -87,24 +83,23 @@ class CredentialModel(Model):
 
         logging.info("Account detached '%s' from '%s'.", credential, account)
 
-        account_credentials = yield self.list_account_credentials(account, db=db)
+        account_credentials = await self.list_account_credentials(account, db=db)
 
         have_credentials = bool(account_credentials)
 
         if (not have_credentials) and accounts_data:
             logging.info("Account deleted '%s'.", account)
-            yield accounts_data.delete_account(account, db=db)
+            await accounts_data.delete_account(account, db=db)
 
-        raise Return(have_credentials)
+        return have_credentials
 
-    @coroutine
-    def list_accounts(self, credential, db=None):
+    async def list_accounts(self, credential, db=None):
         """
         Return accounts have this credential attached.
         """
 
         try:
-            result = yield (db or self.db).query(
+            result = await (db or self.db).query(
                 """
                     SELECT `account_id`
                     FROM `account_credentials`
@@ -113,10 +108,9 @@ class CredentialModel(Model):
         except DatabaseError as e:
             raise CredentialError(500, "Failed to list accounts: " + e.args[1])
 
-        raise Return([str(r["account_id"]) for r in result])
+        return [str(r["account_id"]) for r in result]
 
-    @coroutine
-    def list_account_credentials(self, account_id, credential_types=None, db=None):
+    async def list_account_credentials(self, account_id, credential_types=None, db=None):
         """
         List all credentials, attached to an account.
         :param account_id: An account
@@ -126,7 +120,7 @@ class CredentialModel(Model):
         """
 
         try:
-            result = yield (db or self.db).query(
+            result = await (db or self.db).query(
                 """
                     SELECT `credential`
                     FROM `account_credentials`
@@ -137,25 +131,24 @@ class CredentialModel(Model):
 
         if credential_types:
             def _check(c_):
-                parsed = common.access.parse_account(c_["credential"])
+                parsed = access.parse_account(c_["credential"])
                 return (parsed[0] in credential_types) if parsed else False
 
             result = [c["credential"] for c in result if _check(c)]
         else:
             result = [c["credential"] for c in result]
 
-        raise Return(result)
+        return result
 
-    @coroutine
-    def list_accounts_by_credentials(self, credentials, db=None, amount_max=500):
+    async def list_accounts_by_credentials(self, credentials, db=None, amount_max=500):
         if not credentials:
-            raise Return([])
+            return []
 
         if len(credentials) > amount_max:
             raise CredentialError(413, "Too many credentials being asked for")
 
         try:
-            result = yield (db or self.db).query(
+            result = await (db or self.db).query(
                 """
                     SELECT `account_id`
                     FROM `account_credentials`
@@ -166,18 +159,17 @@ class CredentialModel(Model):
 
         result = [r['account_id'] for r in result]
 
-        raise Return(result)
+        return result
 
-    @coroutine
-    def get_account(self, credential, db=None):
+    async def get_account(self, credential, db=None):
         """
         Looks an account for a credential. If there is no such, does nothing.
         """
-        if not common.access.parse_account(credential):
+        if not access.parse_account(credential):
             raise CredentialIsNotValid()
 
         try:
-            result = yield (db or self.db).get(
+            result = await (db or self.db).get(
                 """
                     SELECT `account_id`
                     FROM `account_credentials`
@@ -189,16 +181,16 @@ class CredentialModel(Model):
         if result is None:
             raise CredentialNotFound()
 
-        raise Return(str(result["account_id"]) if "account_id" in result else None)
+        return str(result["account_id"]) if "account_id" in result else None
 
     def init(self, application):
 
-        from social import google
-        from social import facebook
-        from social import gamecenter
-        from social import steam
-        from social import vk
-        from social import mailru
+        from .. social import google
+        from .. social import facebook
+        from .. social import gamecenter
+        from .. social import steam
+        from .. social import vk
+        from .. social import mailru
 
         self.register(authenticator.DevAuthenticator(application))
         self.register(google.GoogleAuthenticator(application))

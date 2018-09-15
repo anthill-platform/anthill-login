@@ -1,17 +1,17 @@
-import common.admin as a
 
-import common.access
+from anthill.common import admin as a
+from anthill.common import access, to_int
+
 import datetime
 import ujson
 
-from tornado.gen import coroutine, Return
-from common.social import apis
+from anthill.common.social import apis
 
-from model.access import UserInvalidError, ScopesCorrupterError, NoScopesFound
-from model.password import UserExists, UserNotFound, BadNameFormat
-from model.gamespace import GamespaceNotFound, GamespaceError, NoSuchGamespaceAlias
-from model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
-from model.key import KeyDataError, KeyNotFound
+from . model.access import UserInvalidError, ScopesCorrupterError, NoScopesFound
+from . model.password import UserExists, UserNotFound, BadNameFormat
+from . model.gamespace import GamespaceNotFound, GamespaceError, NoSuchGamespaceAlias
+from . model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
+from . model.key import KeyDataError, KeyNotFound
 
 
 class AccountsController(a.AdminController):
@@ -38,17 +38,15 @@ class AccountsController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
-    @coroutine
-    def search_account(self, account):
+    async def search_account(self, account):
         raise a.Redirect("account", account=account)
 
-    @coroutine
-    def search_credential(self, credential):
+    async def search_credential(self, credential):
 
         credentials = self.application.credentials
 
         try:
-            account = yield credentials.get_account(credential)
+            account = await credentials.get_account(credential)
         except CredentialNotFound:
             raise a.ActionError("No such credential")
         except (UserInvalidError, CredentialIsNotValid):
@@ -58,14 +56,13 @@ class AccountsController(a.AdminController):
 
 
 class AttachCredentialController(a.AdminController):
-    @coroutine
-    def attach(self, credential):
+    async def attach(self, credential):
 
         credentials = self.application.credentials
         account = self.context.get("account")
 
         try:
-            test_id = yield credentials.get_account(credential)
+            test_id = await credentials.get_account(credential)
         except CredentialNotFound:
             pass
         except (UserInvalidError, CredentialIsNotValid):
@@ -78,7 +75,7 @@ class AttachCredentialController(a.AdminController):
                 ])
 
         try:
-            yield credentials.attach(credential, account)
+            await credentials.attach(credential, account)
         except (UserInvalidError, CredentialIsNotValid):
             raise a.ActionError("Credential format is invalid")
 
@@ -118,25 +115,23 @@ class AuthoritativeController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
-    @coroutine
-    def search(self, credential):
+    async def search(self, credential):
         raise a.Redirect("edit_authoritative", credential=credential)
 
 
 class EditAccountController(a.AdminController):
-    @coroutine
-    def get(self, account):
-        access = self.application.access
+    async def get(self, account):
+        app_access = self.application.access
         credentials = self.application.credentials
 
-        gamespace_id = self.token.get(common.access.AccessToken.GAMESPACE)
+        gamespace_id = self.token.get(access.AccessToken.GAMESPACE)
 
         try:
-            rights = yield access.get_account_access(gamespace_id, account)
+            rights = await app_access.get_account_access(gamespace_id, account)
         except NoScopesFound:
             rights = ""
 
-        credential_list = yield credentials.list_account_credentials(account)
+        credential_list = await credentials.list_account_credentials(account)
 
         result = {
             "rights": ",".join(rights),
@@ -144,7 +139,7 @@ class EditAccountController(a.AdminController):
         }
 
         tokens = self.application.tokens
-        uuids = yield tokens.get_uuids(account)
+        uuids = await tokens.get_uuids(account)
 
         result["tokens"] = {
             uuid: {
@@ -202,16 +197,15 @@ class EditAccountController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
-    @coroutine
-    def update(self, rights):
+    async def update(self, rights):
 
         account = self.get_context("account")
 
-        access = self.application.access
-        gamespace_id = self.token.get(common.access.AccessToken.GAMESPACE)
+        app_access = self.application.access
+        gamespace_id = self.token.get(access.AccessToken.GAMESPACE)
 
         try:
-            yield access.set_account_access(gamespace_id, account, rights)
+            await app_access.set_account_access(gamespace_id, account, rights)
         except ScopesCorrupterError:
             raise a.ActionError("Scopes are corrupted")
 
@@ -219,26 +213,25 @@ class EditAccountController(a.AdminController):
 
 
 class EditAuthoritativeController(a.AdminController):
-    @coroutine
-    def delete(self, password):
+    # noinspection PyUnusedLocal
+    async def delete(self, password):
         credential = self.get_context("credential")
 
         passwords = self.application.passwords
 
         try:
-            yield passwords.delete(credential)
+            await passwords.delete(credential)
         except UserNotFound:
             raise a.ActionError("No such user")
 
         raise a.Redirect("authoritative", message="User has been deleted")
 
-    @coroutine
-    def get(self, credential):
+    async def get(self, credential):
 
         passwords = self.application.passwords
 
         try:
-            user = yield passwords.get(credential)
+            user = await passwords.get(credential)
         except BadNameFormat:
             raise a.ActionError("Bad user format")
         except UserNotFound:
@@ -271,14 +264,13 @@ class EditAuthoritativeController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
-    @coroutine
-    def update(self, password):
+    async def update(self, password):
         credential = self.get_context("credential")
 
         passwords = self.application.passwords
 
         try:
-            yield passwords.update(credential, password)
+            await passwords.update(credential, password)
         except UserNotFound:
             raise a.ActionError("No such user")
 
@@ -286,14 +278,13 @@ class EditAuthoritativeController(a.AdminController):
 
 
 class EditCredentialController(a.AdminController):
-    @coroutine
-    def delete(self):
+    async def delete(self):
 
         credential = self.context.get("credential")
         credentials = self.application.credentials
 
         try:
-            account = yield credentials.get_account(credential)
+            account = await credentials.get_account(credential)
         except CredentialNotFound:
             raise a.ActionError("No such credential")
         except (UserInvalidError, CredentialIsNotValid):
@@ -306,21 +297,20 @@ class EditCredentialController(a.AdminController):
 
         raise a.Redirect("account", message="Credential has been updated", account=account)
 
-    @coroutine
-    def migrate_credential(self, moveto):
+    async def migrate_credential(self, moveto):
 
         credentials = self.application.credentials
         credential = self.context.get("credential")
 
         try:
-            account = yield credentials.get_account(credential)
+            account = await credentials.get_account(credential)
         except CredentialNotFound:
             raise a.ActionError("No such credential")
         except (UserInvalidError, CredentialIsNotValid):
             raise a.ActionError("Credential format is invalid")
 
         try:
-            moveto = yield credentials.get_account(moveto)
+            moveto = await credentials.get_account(moveto)
         except CredentialNotFound:
             raise a.ActionError("No such credential")
         except (UserInvalidError, CredentialIsNotValid):
@@ -336,16 +326,15 @@ class EditCredentialController(a.AdminController):
                          message="Credential has been migrated",
                          account=moveto)
 
-    @coroutine
-    def migrate_account(self, moveto):
+    async def migrate_account(self, moveto):
 
         credentials = self.application.credentials
         credential = self.context.get("credential")
 
-        moveto = common.to_int(moveto)
+        moveto = to_int(moveto)
 
         try:
-            account = yield credentials.get_account(credential)
+            account = await credentials.get_account(credential)
         except CredentialNotFound:
             raise a.ActionError("No such credential")
         except (UserInvalidError, CredentialIsNotValid):
@@ -361,13 +350,12 @@ class EditCredentialController(a.AdminController):
                          message="Credential has been migrated",
                          account=moveto)
 
-    @coroutine
-    def get(self, credential):
+    async def get(self, credential):
 
         credentials = self.application.credentials
 
         try:
-            account = yield credentials.get_account(credential)
+            account = await credentials.get_account(credential)
         except CredentialNotFound:
             raise a.ActionError("No such credential")
         except (UserInvalidError, CredentialIsNotValid):
@@ -414,19 +402,18 @@ class EditCredentialController(a.AdminController):
 
 
 class EditKeyController(a.AdminController):
-    @coroutine
-    def get(self, key_id):
+    async def get(self, key_id):
         keys = self.application.keys
 
         try:
-            key = yield keys.get_key(self.gamespace, key_id)
+            key = await keys.get_key(self.gamespace, key_id)
         except KeyNotFound:
             raise a.ActionError("No such key")
 
         key_name = key.name
 
         try:
-            key_data = yield keys.get_key_decoded(self.gamespace, key_id)
+            key_data = await keys.get_key_decoded(self.gamespace, key_id)
         except KeyNotFound:
             raise a.ActionError("No such key")
 
@@ -435,7 +422,7 @@ class EditKeyController(a.AdminController):
             api = api_type(self.application.cache)
 
             if api.has_private_key():
-                private_key = yield api.get_private_key(self.gamespace, data=key_data)
+                private_key = await api.get_private_key(self.gamespace, data=key_data)
 
                 if private_key.has_ui():
                     private_key_data = private_key.get()
@@ -482,14 +469,13 @@ class EditKeyController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
-    @coroutine
-    def update_api_key(self, **kwargs):
+    async def update_api_key(self, **kwargs):
         keys = self.application.keys
 
         key_id = self.context.get("key_id")
 
         try:
-            key = yield keys.get_key(self.gamespace, key_id)
+            key = await keys.get_key(self.gamespace, key_id)
         except KeyNotFound:
             raise a.ActionError("No such key")
 
@@ -505,16 +491,16 @@ class EditKeyController(a.AdminController):
             raise a.ActionError("This type of key is not supported")
 
         try:
-            key_data = yield keys.get_key_decoded(self.gamespace, key_id)
+            key_data = await keys.get_key_decoded(self.gamespace, key_id)
         except KeyNotFound:
             raise a.ActionError("No such key")
 
-        private_key = yield api.get_private_key(self.gamespace, data=key_data)
+        private_key = await api.get_private_key(self.gamespace, data=key_data)
         private_key.update(**kwargs)
         new_data = private_key.dump()
 
         try:
-            yield keys.update_key_data(self.gamespace, key_id, new_data)
+            await keys.update_key_data(self.gamespace, key_id, new_data)
         except KeyDataError as e:
             raise a.ActionError("Failed to update a key: " + e.message)
 
@@ -522,8 +508,7 @@ class EditKeyController(a.AdminController):
                          message="Key has been updated",
                          key_id=key_id)
 
-    @coroutine
-    def update_raw_key(self, key_data):
+    async def update_raw_key(self, key_data):
 
         try:
             key_data = ujson.loads(key_data)
@@ -534,7 +519,7 @@ class EditKeyController(a.AdminController):
         key_id = self.context.get("key_id")
 
         try:
-            yield keys.update_key_data(self.gamespace, key_id, key_data)
+            await keys.update_key_data(self.gamespace, key_id, key_data)
         except KeyDataError as e:
             raise a.ActionError("Failed to update a key: " + e.message)
 
@@ -544,33 +529,31 @@ class EditKeyController(a.AdminController):
 
 
 class GamespaceController(a.AdminController):
-    @coroutine
-    def delete(self):
+    async def delete(self):
 
         gamespaces_data = self.application.gamespaces
         gamespace = self.context.get("gamespace")
 
         try:
-            yield gamespaces_data.delete_gamespace(gamespace)
+            await gamespaces_data.delete_gamespace(gamespace)
         except GamespaceError as g:
             raise a.ActionError(g.message)
 
         raise a.Redirect("gamespaces", message="Gamespace has been deleted")
 
-    @coroutine
-    def get(self, gamespace):
+    async def get(self, gamespace):
 
         gamespaces_data = self.application.gamespaces
 
         try:
-            gamespace_data = yield gamespaces_data.get_gamespace(gamespace)
+            gamespace_data = await gamespaces_data.get_gamespace(gamespace)
         except GamespaceNotFound:
             raise a.ActionError("No such gamespace")
         except GamespaceError as e:
             raise a.ActionError("Failed to get a gamespace: " + e.message)
 
         try:
-            names = yield gamespaces_data.list_gamespace_aliases(gamespace)
+            names = await gamespaces_data.list_gamespace_aliases(gamespace)
         except GamespaceError as e:
             raise a.ActionError("Failed to get a gamespace names: " + e.message)
 
@@ -615,16 +598,15 @@ class GamespaceController(a.AdminController):
     def access_scopes(self):
         return ["auth_gamespace_admin"]
 
-    @coroutine
-    def update(self, title, scopes):
+    async def update(self, title, scopes):
 
         gamespaces_data = self.application.gamespaces
         gamespace = self.context.get("gamespace")
 
-        scopes = common.access.parse_scopes(scopes)
+        scopes = access.parse_scopes(scopes)
 
         try:
-            yield gamespaces_data.update_gamespace(gamespace, title, scopes)
+            await gamespaces_data.update_gamespace(gamespace, title, scopes)
         except GamespaceError as g:
             raise a.ActionError(g.message)
 
@@ -632,45 +614,44 @@ class GamespaceController(a.AdminController):
 
 
 class GamespaceNameController(a.AdminController):
-    @coroutine
-    def delete(self, **ignored):
+    # noinspection PyUnusedLocal
+    async def delete(self, **ignored):
 
         gamespaces_data = self.application.gamespaces
         record_id = self.context.get("record_id")
 
         try:
-            name = yield gamespaces_data.get_gamespace_alias(record_id)
+            name = await gamespaces_data.get_gamespace_alias(record_id)
         except NoSuchGamespaceAlias:
             raise a.ActionError("No such gamespace name")
 
         try:
-            yield gamespaces_data.delete_gamespace_alias(record_id)
+            await gamespaces_data.delete_gamespace_alias(record_id)
         except GamespaceError as g:
             raise a.ActionError(g.message)
 
         raise a.Redirect("gamespace", message="Name has been deleted", gamespace=name.gamespace_id)
 
-    @coroutine
-    def get(self, record_id):
+    async def get(self, record_id):
 
         gamespaces_data = self.application.gamespaces
 
         try:
-            name = yield gamespaces_data.get_gamespace_alias(record_id)
+            name = await gamespaces_data.get_gamespace_alias(record_id)
         except NoSuchGamespaceAlias:
             raise a.ActionError("No such gamespace name")
 
         gamespace = name.gamespace_id
 
         try:
-            gamespace_data = yield gamespaces_data.get_gamespace(gamespace)
+            gamespace_data = await gamespaces_data.get_gamespace(gamespace)
         except GamespaceNotFound:
             raise a.ActionError("No such gamespace")
         except GamespaceError as e:
             raise a.ActionError("Failed to get a gamespace: " + e.message)
 
         try:
-            gamespaces = yield gamespaces_data.list_gamespaces()
+            gamespaces = await gamespaces_data.list_gamespaces()
         except GamespaceError as e:
             raise a.ActionError(e.message)
 
@@ -710,19 +691,18 @@ class GamespaceNameController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
-    @coroutine
-    def update(self, name, gamespace):
+    async def update(self, name, gamespace):
 
         gamespaces_data = self.application.gamespaces
         record_id = self.context.get("record_id")
 
         try:
-            yield gamespaces_data.get_gamespace_alias(record_id)
+            await gamespaces_data.get_gamespace_alias(record_id)
         except NoSuchGamespaceAlias:
             raise a.ActionError("No such gamespace name")
 
         try:
-            yield gamespaces_data.update_gamespace_name(record_id, name, gamespace)
+            await gamespaces_data.update_gamespace_name(record_id, name, gamespace)
         except GamespaceError as g:
             raise a.ActionError(g.message)
 
@@ -730,10 +710,9 @@ class GamespaceNameController(a.AdminController):
 
 
 class GamespacesController(a.AdminController):
-    @coroutine
-    def get(self):
+    async def get(self):
         gamespaces_data = self.application.gamespaces
-        gamespaces = yield gamespaces_data.list_gamespaces()
+        gamespaces = await gamespaces_data.list_gamespaces()
 
         result = {
             "gamespaces": gamespaces
@@ -758,11 +737,10 @@ class GamespacesController(a.AdminController):
 
 
 class InvalidateAccountAllController(a.AdminController):
-    @coroutine
-    def get(self, account):
+    async def get(self, account):
         tokens = self.application.tokens
 
-        if (yield tokens.invalidate_account(account)):
+        if await tokens.invalidate_account(account):
             raise a.Redirect("account", message="Tokens have been invalidated", account=account)
 
         raise a.ActionError("Unknown account")
@@ -772,11 +750,10 @@ class InvalidateAccountAllController(a.AdminController):
 
 
 class InvalidateAccountUUIDController(a.AdminController):
-    @coroutine
-    def get(self, uuid, account):
+    async def get(self, uuid, account):
         tokens = self.application.tokens
 
-        if (yield tokens.invalidate_uuid(account, uuid)):
+        if await tokens.invalidate_uuid(account, uuid):
             raise a.Redirect("account", message="Token has been invalidated", account=account)
 
         raise a.ActionError("Unknown UUID")
@@ -786,30 +763,29 @@ class InvalidateAccountUUIDController(a.AdminController):
 
 
 class KeyController(a.AdminController):
-    @coroutine
-    def delete(self, **ignored):
+    # noinspection PyUnusedLocal
+    async def delete(self, **ignored):
         keys = self.application.keys
         key_id = self.context.get("key_id")
 
         try:
-            yield keys.delete_key(self.gamespace, key_id)
+            await keys.delete_key(self.gamespace, key_id)
         except KeyDataError as e:
             raise a.ActionError("Failed to delete a key: " + e.message)
 
         raise a.Redirect("keys", message="Key has been deleted")
 
-    @coroutine
-    def edit(self, **ignored):
+    # noinspection PyUnusedLocal
+    async def edit(self, **ignored):
         key_id = self.context.get("key_id")
 
         raise a.Redirect("edit_key", key_id=key_id)
 
-    @coroutine
-    def get(self, key_id):
+    async def get(self, key_id):
         keys = self.application.keys
 
         try:
-            key = yield keys.get_key(self.gamespace, key_id)
+            key = await keys.get_key(self.gamespace, key_id)
         except KeyNotFound:
             raise a.ActionError("No such key")
 
@@ -843,14 +819,13 @@ class KeyController(a.AdminController):
     def access_scopes(self):
         return ["auth_admin"]
 
-    @coroutine
-    def update(self, key_name):
+    async def update(self, key_name):
 
         keys = self.application.keys
         key_id = self.context.get("key_id")
 
         try:
-            yield keys.update_key(self.gamespace, key_id, key_name)
+            await keys.update_key(self.gamespace, key_id, key_name)
         except KeyDataError as e:
             raise a.ActionError("Failed to create a key: " + e.message)
 
@@ -858,12 +833,11 @@ class KeyController(a.AdminController):
 
 
 class KeysController(a.AdminController):
-    @coroutine
-    def get(self):
+    async def get(self):
 
         keys = self.application.keys
 
-        key_list = yield keys.list_keys(self.gamespace)
+        key_list = await keys.list_keys(self.gamespace)
 
         raise a.Return({
             "keys": key_list
@@ -887,13 +861,12 @@ class KeysController(a.AdminController):
 
 
 class NewAuthoritativeController(a.AdminController):
-    @coroutine
-    def create(self, credential, password):
+    async def create(self, credential, password):
 
         passwords = self.application.passwords
 
         try:
-            yield passwords.create(credential, password)
+            await passwords.create(credential, password)
         except UserExists:
             raise a.ActionError("Such user already exists")
         except BadNameFormat:
@@ -922,15 +895,14 @@ class NewAuthoritativeController(a.AdminController):
 
 
 class NewGamespaceController(a.AdminController):
-    @coroutine
-    def create(self, title, scopes):
+    async def create(self, title, scopes):
 
         gamespaces_data = self.application.gamespaces
 
-        scopes = common.access.parse_scopes(scopes)
+        scopes = access.parse_scopes(scopes)
 
         try:
-            gamespace = yield gamespaces_data.create_gamespace(title, scopes)
+            gamespace = await gamespaces_data.create_gamespace(title, scopes)
         except GamespaceError as g:
             raise a.ActionError(g.message)
 
@@ -965,41 +937,39 @@ class NewGamespaceController(a.AdminController):
 
 
 class NewGamespaceNameController(a.AdminController):
-    @coroutine
-    def create(self, name):
+    async def create(self, name):
         gamespace = self.context.get("gamespace")
 
         gamespaces_data = self.application.gamespaces
 
         try:
-            yield gamespaces_data.get_gamespace(gamespace)
+            await gamespaces_data.get_gamespace(gamespace)
         except GamespaceNotFound:
             raise a.ActionError("No such gamespace")
         except GamespaceError as e:
             raise a.ActionError("Failed to get a gamespace: " + e.message)
 
         try:
-            yield gamespaces_data.create_gamespace_alias(name, gamespace_id=gamespace)
+            await gamespaces_data.create_gamespace_alias(name, gamespace_id=gamespace)
         except GamespaceError as e:
             raise a.ActionError("Failed to add a gamespace name: " + e.message)
 
         raise a.Redirect("gamespace", message="New name has been created", gamespace=gamespace)
 
-    @coroutine
-    def get(self, gamespace):
+    async def get(self, gamespace):
 
         gamespaces_data = self.application.gamespaces
 
         try:
-            gamespace_data = yield gamespaces_data.get_gamespace(gamespace)
+            gamespace_data = await gamespaces_data.get_gamespace(gamespace)
         except GamespaceNotFound:
             raise a.ActionError("No such gamespace")
         except GamespaceError as e:
             raise a.ActionError("Failed to get a gamespace: " + e.message)
 
-        raise Return({
+        return {
             "gamespace_title": gamespace_data.title
-        })
+        }
 
     def render(self, data):
         return [
@@ -1023,14 +993,12 @@ class NewGamespaceNameController(a.AdminController):
 
 class NewRawKeyController(a.AdminController):
 
-    @coroutine
-    def get(self):
-        raise Return({
+    async def get(self):
+        return {
             "key_data": {}
-        })
+        }
 
-    @coroutine
-    def create(self, key_name, key_data):
+    async def create(self, key_name, key_data):
 
         try:
             key_data = ujson.loads(key_data)
@@ -1040,7 +1008,7 @@ class NewRawKeyController(a.AdminController):
         keys = self.application.keys
 
         try:
-            key_id = yield keys.add_key(self.gamespace, key_name, key_data)
+            key_id = await keys.add_key(self.gamespace, key_name, key_data)
         except KeyDataError as e:
             raise a.ActionError("Failed to create a key: " + e.message)
 
@@ -1070,19 +1038,17 @@ class NewRawKeyController(a.AdminController):
 
 class NewAPIKeyController(a.AdminController):
 
-    @coroutine
-    def get(self):
+    async def get(self):
         key_types = {
             api_type_name: api_type_name
             for api_type_name, api_type in apis.api_types.iteritems()
         }
 
-        raise Return({
+        return {
             "key_types": key_types
-        })
+        }
 
-    @coroutine
-    def proceed(self, key_type):
+    async def proceed(self, key_type):
         keys = self.application.keys
 
         api_types = apis.api_types
@@ -1097,24 +1063,23 @@ class NewAPIKeyController(a.AdminController):
             raise a.ActionError("Bad kay type")
 
         try:
-            key = yield keys.find_key(self.gamespace, key_type)
+            key = await keys.find_key(self.gamespace, key_type)
         except KeyDataError as e:
             raise a.ActionError("Failed to lookup a key: " + e.message)
-        except KeyNotFound as e:
+        except KeyNotFound:
             pass
         else:
             raise a.Redirect("key", message="This key already exists", key_id=key.key_id)
 
         private_key = api.new_private_key(None)
 
-        raise Return({
+        return {
             "private_key": private_key,
             "key_type": key_type,
             "private_key_data": {}
-        })
+        }
 
-    @coroutine
-    def create(self, **kwargs):
+    async def create(self, **kwargs):
 
         keys = self.application.keys
 
@@ -1137,7 +1102,7 @@ class NewAPIKeyController(a.AdminController):
         key_data = private_key.dump()
 
         try:
-            key_id = yield keys.add_key(self.gamespace, key_type, key_data)
+            key_id = await keys.add_key(self.gamespace, key_type, key_data)
         except KeyDataError as e:
             raise a.ActionError("Failed to create a key: " + e.message)
 

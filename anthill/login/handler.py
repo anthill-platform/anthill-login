@@ -1,30 +1,28 @@
-import urllib
-import urlparse
+
+from tornado.web import HTTPError
+
+from anthill.common import access
+
+from anthill.common.internal import InternalError
+from anthill.common.access import scoped, AccessToken
+from anthill.common.handler import AuthenticatedHandler, AnthillRequestHandler, JsonHandler
+from anthill.common.validate import validate_value, ValidationError
+
+from . model.access import NoScopesFound
+from . model.account import AuthenticationError
+from . model.gamespace import GamespaceNotFound
+from . model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
+from . model.key import KeyNotFound, KeyDataError
+from . model.token import TokensError
+from . model.password import UserExists, BadNameFormat
+
+from . social import SocialAuthenticator
+from . social import google, facebook, vk
+
+from urllib import parse
 import base64
 import logging
 import ujson
-
-from tornado.web import HTTPError
-from tornado.gen import coroutine, Return
-
-import common.access
-import common.sign
-
-from common.internal import InternalError
-from common.access import scoped, internal
-from common.handler import AuthenticatedHandler, AnthillRequestHandler, JsonHandler
-from common.validate import validate_value, ValidationError
-
-from model.access import ScopesCorrupterError, NoScopesFound
-from model.account import AuthenticationError
-from model.gamespace import GamespaceNotFound
-from model.credential import CredentialNotFound, CredentialIsNotValid, CredentialError
-from model.key import KeyNotFound, KeyDataError
-from model.token import TokensError, AccessToken
-from model.password import UserExists, BadNameFormat
-
-from social import SocialAuthenticator
-from social import google, facebook, vk
 
 
 class AttachAccountHandler(JsonHandler):
@@ -35,8 +33,7 @@ class AttachAccountHandler(JsonHandler):
     def data_received(self, chunk):
         pass
 
-    @coroutine
-    def post(self):
+    async def post(self):
         arguments = {
             key: value[0]
             for key, value in self.request.arguments.iteritems()
@@ -47,14 +44,14 @@ class AttachAccountHandler(JsonHandler):
         except (KeyError, ValueError):
             raise HTTPError(400, "Corrupted env")
 
-        remote_ip = common.access.remote_ip(self.request)
+        remote_ip = access.remote_ip(self.request)
         if remote_ip:
             env["ip_address"] = remote_ip
 
         accounts_data = self.application.accounts
 
         try:
-            result = yield accounts_data.attach_account(arguments, env=env)
+            result = await accounts_data.attach_account(arguments, env=env)
 
             if self.get_argument("full", False) == "true":
                 self.dumps(result)
@@ -86,11 +83,10 @@ class AuthorizeHandler(JsonHandler):
     def data_received(self, chunk):
         pass
 
-    @coroutine
-    def post(self):
+    async def post(self):
         arguments = {
-            key: value[0]
-            for key, value in self.request.arguments.iteritems()
+            key: value[0].decode("utf-8")
+            for key, value in self.request.arguments.items()
         }
 
         accounts_data = self.application.accounts
@@ -100,13 +96,13 @@ class AuthorizeHandler(JsonHandler):
         except (KeyError, ValueError):
             raise HTTPError(400, "Corrupted env")
 
-        remote_ip = common.access.remote_ip(self.request)
+        remote_ip = access.remote_ip(self.request)
         if remote_ip:
             env["ip_address"] = remote_ip
 
         try:
             # proceeds the authorization
-            result = yield accounts_data.authorize(arguments, env)
+            result = await accounts_data.authorize(arguments, env)
 
             if self.get_argument("full", False) == "true":
                 self.dumps(result)
@@ -116,7 +112,7 @@ class AuthorizeHandler(JsonHandler):
         except KeyError as e:
             raise HTTPError(
                 400,
-                "Missing mandatory fields")
+                "Missing mandatory field: " + str(e))
 
         except AuthenticationError as e:
             self.result(e.code, e.obj)
@@ -131,8 +127,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
     Render authorization web form.
     """
 
-    @coroutine
-    def get(self):
+    async def get(self):
 
         credential_types = self.application.credentials.credential_types
         gamespaces = self.application.gamespaces
@@ -150,12 +145,12 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
         except (KeyError, ValueError):
             raise HTTPError(400, "Corrupted env")
 
-        remote_ip = common.access.remote_ip(self.request)
+        remote_ip = access.remote_ip(self.request)
         if remote_ip:
             env["ip_address"] = remote_ip
 
         try:
-            gamespace_id = yield gamespaces.find_gamespace(gamespace_name)
+            gamespace_id = await gamespaces.find_gamespace(gamespace_name)
         except GamespaceNotFound:
             raise HTTPError(404, "No such gamespace")
 
@@ -163,7 +158,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
             token = self.current_user.token
             if token.is_valid():
                 try:
-                    new_token = yield self.application.accounts.authorize({
+                    new_token = await self.application.accounts.authorize({
                         "credential": "token",
                         "access_token": token.key,
                         "gamespace": gamespace_name,
@@ -177,16 +172,16 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
                 else:
                     encoded_token = base64.b64encode(new_token["token"])
 
-                    url_parts = list(urlparse.urlparse(redirect_to))
+                    url_parts = list(parse.urlparse(redirect_to))
 
-                    query = dict(urlparse.parse_qsl(url_parts[4]))
+                    query = dict(parse.parse_qsl(url_parts[4]))
                     query.update({
                         "token": encoded_token
                     })
 
-                    url_parts[4] = urllib.urlencode(query)
+                    url_parts[4] = parse.urlencode(query)
 
-                    self.redirect(urlparse.urlunparse(url_parts))
+                    self.redirect(parse.urlunparse(url_parts))
 
                     return
 
@@ -196,9 +191,9 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
             if isinstance(authorizer, SocialAuthenticator)
         ]
 
-        checked_social_apis = yield keys.check_keys(gamespace_id, social_apis)
+        checked_social_apis = await keys.check_keys(gamespace_id, social_apis)
 
-        scopes = common.access.parse_scopes(scopes_data)
+        scopes = access.parse_scopes(scopes_data)
 
         self.render(
             "template/form.html",
@@ -218,8 +213,7 @@ class OAuth2CallbackHandler(AnthillRequestHandler):
 
 
 class SocialAuthAuthenticationFormHandler(AuthenticatedHandler):
-    @coroutine
-    def get(self, credential_type):
+    async def get(self, credential_type):
 
         credential_types = self.application.credentials.credential_types
         gamespaces = self.application.gamespaces
@@ -236,12 +230,12 @@ class SocialAuthAuthenticationFormHandler(AuthenticatedHandler):
             raise HTTPError(400, "Not supported")
 
         try:
-            gamespace_id = yield gamespaces.find_gamespace(gamespace_name)
+            gamespace_id = await gamespaces.find_gamespace(gamespace_name)
         except GamespaceNotFound:
             raise HTTPError(404, "No such gamespace")
 
         try:
-            client_id = yield api.get_app_id(gamespace=gamespace_id)
+            client_id = await api.get_app_id(gamespace=gamespace_id)
         except KeyNotFound:
             raise HTTPError(500, "This auth is not configured yet")
 
@@ -255,17 +249,16 @@ class ExtendHandler(AuthenticatedHandler):
     Extend access token rights with right of the another access token.
     """
     @scoped()
-    @coroutine
-    def post(self):
+    async def post(self):
         extend, scopes = self.get_argument("extend"), self.get_argument("scopes", "*")
 
-        extend_token = common.access.AccessToken(extend)
+        extend_token = access.AccessToken(extend)
         token_cache = self.application.token_cache
 
         if not token_cache:
             raise HTTPError(500, "Token cache is not defined.")
 
-        valid = yield token_cache.validate(extend_token)
+        valid = await token_cache.validate(extend_token)
         if not valid:
             raise HTTPError(
                 403,
@@ -274,7 +267,7 @@ class ExtendHandler(AuthenticatedHandler):
         tokens = self.application.tokens
 
         try:
-            new_data = yield tokens.extend(
+            new_data = await tokens.extend(
                 self.token,
                 extend_token,
                 scopes)
@@ -296,8 +289,7 @@ class AuthorizationDevHandler(AuthenticatedHandler):
     Renders developer authorization form.
     """
 
-    @coroutine
-    def get(self):
+    async def get(self):
         self.render("template/authdev.html")
 
 
@@ -305,118 +297,112 @@ class InternalHandler(object):
     def __init__(self, application):
         self.application = application
 
-    @coroutine
-    def check_account_exists(self, account):
+    async def check_account_exists(self, account):
         accounts = self.application.accounts
-        exists = yield accounts.check_account_exists(account)
+        exists = await accounts.check_account_exists(account)
 
-        raise Return({
+        return {
             "exists": exists
-        })
+        }
 
-    @coroutine
-    def extend_token(self, token, extend_with, scopes="*"):
+    async def extend_token(self, token, extend_with, scopes="*"):
 
-        token = common.access.AccessToken(token)
-        extend_with = common.access.AccessToken(extend_with)
+        token = access.AccessToken(token)
+        extend_with = access.AccessToken(extend_with)
         token_cache = self.application.token_cache
 
         if not token_cache:
             raise HTTPError(500, "Token cache is not defined.")
 
-        if not (yield token_cache.validate(token)):
+        if not (await token_cache.validate(token)):
             raise InternalError(403, "Token extend to is not valid")
-        if not (yield token_cache.validate(extend_with)):
+        if not (await token_cache.validate(extend_with)):
             raise InternalError(403, "Token extend with to is not valid")
         tokens = self.application.tokens
 
         try:
-            new_data = yield tokens.extend(token, extend_with, scopes)
+            new_data = await tokens.extend(token, extend_with, scopes)
         except TokensError as e:
             raise InternalError(403, e.message)
 
         new_token_string = new_data["key"]
 
-        raise Return({
+        return {
             "access_token": new_token_string,
             "expires_in": new_data["expires"],
             "scopes": new_data["scopes"]
-        })
+        }
 
-    @coroutine
-    def get_scopes(self, credential, gamespace):
+    async def get_scopes(self, credential, gamespace):
         credentials = self.application.credentials
         gamespaces = self.application.gamespaces
-        access = self.application.access
+        app_access = self.application.access
 
         try:
-            gamespace = yield gamespaces.find_gamespace_info(gamespace)
+            gamespace = await gamespaces.find_gamespace_info(gamespace)
         except GamespaceNotFound:
             raise InternalError(404, "Gamespace '{0}' was not found".format(gamespace))
         else:
             gamespace_id = gamespace.gamespace_id
 
         try:
-            account_id = yield credentials.get_account(credential)
+            account_id = await credentials.get_account(credential)
         except CredentialNotFound:
             raise InternalError(404, "No such credential")
         except CredentialIsNotValid:
             raise InternalError(400, "Bad credential")
 
         try:
-            account_scopes = yield access.get_account_access(gamespace_id, account_id)
+            account_scopes = await app_access.get_account_access(gamespace_id, account_id)
         except NoScopesFound:
             raise InternalError(404, "User has no scopes")
 
-        raise Return({
+        return {
             "scopes": ",".join(account_scopes)
-        })
+        }
 
-    @coroutine
-    def set_scopes(self, credential, gamespace, scopes):
+    async def set_scopes(self, credential, gamespace, scopes):
         credentials = self.application.credentials
         gamespaces = self.application.gamespaces
-        access = self.application.access
+        app_access = self.application.access
 
         try:
-            gamespace = yield gamespaces.find_gamespace_info(gamespace)
+            gamespace = await gamespaces.find_gamespace_info(gamespace)
         except GamespaceNotFound:
             raise InternalError(404, "Gamespace '{0}' was not found".format(gamespace))
         else:
             gamespace_id = gamespace.gamespace_id
 
         try:
-            account_id = yield credentials.get_account(credential)
+            account_id = await credentials.get_account(credential)
         except CredentialNotFound:
             raise InternalError(404, "No such credential")
         except CredentialIsNotValid:
             raise InternalError(400, "Bad credential")
 
-        yield access.set_account_access(gamespace_id, account_id, scopes)
+        await app_access.set_account_access(gamespace_id, account_id, scopes)
 
-        raise Return("OK")
+        return "OK"
 
-    @coroutine
-    def get_account(self, credential):
+    async def get_account(self, credential):
         credentials = self.application.credentials
 
         try:
-            account_id = yield credentials.get_account(credential)
+            account_id = await credentials.get_account(credential)
         except CredentialNotFound:
             raise InternalError(404, "No such credential")
         except CredentialIsNotValid:
             raise InternalError(400, "Bad credential")
         else:
-            raise Return({
+            return {
                 "id": account_id
-            })
+            }
 
-    @coroutine
-    def get_credential(self, credential_type, account_id):
+    async def get_credential(self, credential_type, account_id):
         credentials = self.application.credentials
 
         try:
-            credentials = yield credentials.list_account_credentials(
+            credentials = await credentials.list_account_credentials(
                 account_id, credential_types=[credential_type])
         except CredentialError as e:
             raise InternalError(e.code, e.message)
@@ -424,61 +410,57 @@ class InternalHandler(object):
             if not credentials:
                 raise InternalError(404, "No such credentials for such account")
 
-            raise Return({
+            return {
                 "credential": credentials[0]
-            })
+            }
 
-    @coroutine
-    def new_gamespace(self, name):
+    async def new_gamespace(self, name):
 
         gamespaces = self.application.gamespaces
 
         try:
-            yield gamespaces.find_gamespace_info(name)
+            await gamespaces.find_gamespace_info(name)
         except GamespaceNotFound:
-            gamespace_id = yield gamespaces.create_gamespace(name, [])
-            yield gamespaces.create_gamespace_alias(name, gamespace_id)
-            raise Return("OK")
+            gamespace_id = await gamespaces.create_gamespace(name, [])
+            await gamespaces.create_gamespace_alias(name, gamespace_id)
+            return "OK"
         else:
             raise InternalError(404, "Such gamespace already exists")
 
-    @coroutine
-    def new_dev_credential(self, username, password):
+    async def new_dev_credential(self, username, password):
 
         passwords = self.application.passwords
 
         try:
-            account_id = yield passwords.create(username, password)
+            account_id = await passwords.create(username, password)
         except UserExists:
             raise InternalError(400, "Such user exists")
         except BadNameFormat:
             raise InternalError(400, "Bad name format")
 
-        raise Return({
+        return {
             "account": account_id
-        })
+        }
 
-    @coroutine
-    def get_gamespace(self, name):
+    async def get_gamespace(self, name):
 
         gamespaces = self.application.gamespaces
 
         try:
-            gamespace = yield gamespaces.find_gamespace_info(name)
+            gamespace = await gamespaces.find_gamespace_info(name)
         except GamespaceNotFound:
             raise InternalError(404, "Gamespace '{0}' was not found".format(name))
         else:
-            raise Return({
+            return {
                 "id": gamespace.gamespace_id,
                 "name": name,
                 "title": gamespace.title
-            })
+            }
 
-    @coroutine
-    def get_gamespaces(self):
+    async def get_gamespaces(self):
 
         gamespaces_data = self.application.gamespaces
-        gamespaces = yield gamespaces_data.list_all_aliases()
+        gamespaces = await gamespaces_data.list_all_aliases()
         result = [
             {
                 "name": alias.name,
@@ -487,59 +469,54 @@ class InternalHandler(object):
             for alias in gamespaces
         ]
 
-        raise Return(result)
+        return result
 
-    @coroutine
-    def get_key(self, gamespace, key_name):
+    async def get_key(self, gamespace, key_name):
         keys = self.application.keys
         try:
-            key = yield keys.get_key_cached(gamespace, key_name, kv=self.application.cache)
+            key = await keys.get_key_cached(gamespace, key_name, kv=self.application.cache)
         except KeyNotFound:
             raise InternalError(404, "No such key")
         except KeyDataError as e:
             raise InternalError(500, e.message)
         else:
-            raise Return(key)
+            return key
 
-    @coroutine
-    def refresh_token(self, access_token):
-        token = common.access.AccessToken(access_token)
+    async def refresh_token(self, access_token):
+        token = access.AccessToken(access_token)
         tokens = self.application.tokens
 
         try:
-            new_data = yield tokens.refresh(token)
+            new_data = await tokens.refresh(token)
         except TokensError as e:
             raise InternalError(403, e)
 
         new_token_string = new_data["key"]
 
-        raise Return({
+        return {
             "access_token": new_token_string
-        })
+        }
 
-    @coroutine
-    def validate_token(self, access_token):
+    async def validate_token(self, access_token):
+        token = access.AccessToken(access_token)
 
-        token = common.access.AccessToken(access_token)
-
-        if (yield self.application.tokens.validate(token)):
-            raise Return({
+        if await self.application.tokens.validate(token):
+            return {
                 "result": "ok"
-            })
+            }
         else:
             raise InternalError(
                 403, "Token is not valid.")
 
-    @coroutine
-    def authenticate(self, env=None, **kwargs):
+    async def authenticate(self, env=None, **kwargs):
         try:
-            token = yield self.application.accounts.authorize(kwargs, env=env)
+            token = await self.application.accounts.authorize(kwargs, env=env)
         except KeyError:
             raise InternalError(400, "Missing fields")
         except AuthenticationError as e:
             raise InternalError(e.code, ujson.dumps(e.obj))
         else:
-            raise Return(token)
+            return token
 
 
 class ResolveConflictHandler(AuthenticatedHandler):
@@ -551,8 +528,7 @@ class ResolveConflictHandler(AuthenticatedHandler):
         pass
 
     @scoped(scopes=["resolve_conflict"])
-    @coroutine
-    def post(self):
+    async def post(self):
         resolve_method = self.get_argument("resolve_method")
 
         # get POST arguments into a dict
@@ -566,14 +542,14 @@ class ResolveConflictHandler(AuthenticatedHandler):
         except (KeyError, ValueError):
             raise HTTPError(400, "Corrupted env")
 
-        remote_ip = common.access.remote_ip(self.request)
+        remote_ip = access.remote_ip(self.request)
         if remote_ip:
             env["ip_address"] = remote_ip
 
         accounts_data = self.application.accounts
 
         try:
-            result = yield accounts_data.resolve_conflict(self.token, resolve_method, arguments, env=env)
+            result = await accounts_data.resolve_conflict(self.token, resolve_method, arguments, env=env)
 
             if self.get_argument("full", False) == "true":
                 self.dumps(result)
@@ -594,13 +570,12 @@ class ResolveConflictHandler(AuthenticatedHandler):
 
 
 class ValidateHandler(JsonHandler):
-    @coroutine
-    def get(self):
+    async def get(self):
         token_string = self.get_argument("access_token")
 
-        token = common.access.AccessToken(token_string)
+        token = access.AccessToken(token_string)
 
-        if (yield self.application.tokens.validate(token)):
+        if await self.application.tokens.validate(token):
             self.dumps({
                 "account": str(token.account),
                 "credential": token.get(AccessToken.USERNAME),
@@ -613,14 +588,13 @@ class ValidateHandler(JsonHandler):
 
 
 class AccountCredentialsHandler(AuthenticatedHandler):
-    @coroutine
     @scoped()
-    def get(self):
+    async def get(self):
 
         credentials = self.application.credentials
 
         try:
-            user_credentials = yield credentials.list_account_credentials(self.token.account)
+            user_credentials = await credentials.list_account_credentials(self.token.account)
         except CredentialError as e:
             raise HTTPError(e.code, e.message)
 
@@ -632,8 +606,7 @@ class AccountCredentialsHandler(AuthenticatedHandler):
 
 class AccountIDSByCredentialsHandler(AuthenticatedHandler):
     @scoped()
-    @coroutine
-    def get(self):
+    async def get(self):
         credentials = self.application.credentials
         credentials_data = self.get_argument("credentials")
 
@@ -644,7 +617,7 @@ class AccountIDSByCredentialsHandler(AuthenticatedHandler):
             raise HTTPError(400, "Corrupted credentials")
 
         try:
-            account_ids = yield credentials.list_accounts_by_credentials(credentials_data)
+            account_ids = await credentials.list_accounts_by_credentials(credentials_data)
         except CredentialError as e:
             raise HTTPError(e.code, e.message)
 

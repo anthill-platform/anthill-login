@@ -1,18 +1,15 @@
 
-from tornado.gen import coroutine, Return
-
 import tornado.httpclient
 import logging
 import base64
-import urlparse
+from urllib import parse
 from OpenSSL import crypto
 import struct
 
-from model.authenticator import AuthenticationResult
-from model import authenticator
+from .. model.authenticator import AuthenticationResult, AuthenticationError
 from . import SocialAuthenticator
 
-from common import cached
+from anthill.common import cached
 
 
 class GameCenterAuthorizer(SocialAuthenticator):
@@ -21,8 +18,7 @@ class GameCenterAuthorizer(SocialAuthenticator):
     def __init__(self, application):
         SocialAuthenticator.__init__(self, application, GameCenterAuthorizer.TYPE)
 
-    @coroutine
-    def authorize(self, gamespace, args, db=None, env=None):
+    async def authorize(self, gamespace, args, db=None, env=None):
         try:
             public_key_url = args["public_key"]
             signature = args["signature"]
@@ -32,47 +28,47 @@ class GameCenterAuthorizer(SocialAuthenticator):
             username = args["username"]
         except KeyError:
             logging.error("Missing arguments")
-            raise authenticator.AuthenticationError("missing_argument")
+            raise AuthenticationError("missing_argument")
 
         try:
             decoded_sig = base64.b64decode(signature)
             decoded_salt = base64.b64decode(salt)
-        except:
+        except Exception:
             logging.error("Failed to decode signature or salt")
-            raise authenticator.AuthenticationError("error")
+            raise AuthenticationError("error")
 
         try:
-            key_parsed = urlparse.urlparse(public_key_url)
-        except:
+            key_parsed = parse.urlparse(public_key_url)
+        except Exception:
             logging.error("Failed to parse public key")
-            raise authenticator.AuthenticationError("error")
+            raise AuthenticationError("error")
         else:
             if (key_parsed.scheme != "https") or (not key_parsed.hostname.endswith("apple.com")):
                 logging.error("Wrong certificate location")
-                raise authenticator.AuthenticationError("forbidden")
+                raise AuthenticationError("forbidden")
 
-            key_url = urlparse.urlunparse(key_parsed)
+            key_url = parse.urlunparse(key_parsed)
 
+        # noinspection PyUnusedLocal
         @cached(kv=self.application.cache,
                 h=lambda: "cert:" + key_url,
                 ttl=600)
-        @coroutine
-        def get_certificate(location, *args, **kwargs):
+        async def get_certificate(location, *i_args, **i_kwargs):
             client = tornado.httpclient.AsyncHTTPClient()
-            result = yield client.fetch(location)
-            raise Return(result.body)
+            result = await client.fetch(location)
+            return result.body
 
         try:
-            certificate = yield get_certificate(key_url)
+            certificate = await get_certificate(key_url)
         except tornado.httpclient.HTTPError as e:
             logging.error("Failed to download certificate: " + str(e.code))
-            raise authenticator.AuthenticationError("error")
+            raise AuthenticationError("error")
 
         try:
             x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, certificate)
         except Exception as e:
-            logging.error("Failed to load certificate: " + e.message)
-            raise authenticator.AuthenticationError("forbidden")
+            logging.error("Failed to load certificate: " + str(e))
+            raise AuthenticationError("forbidden")
 
         payload = username.encode('UTF-8') + bundle_id.encode('UTF-8') + \
             struct.pack('>Q', int(timestamp)) + decoded_salt
@@ -81,7 +77,7 @@ class GameCenterAuthorizer(SocialAuthenticator):
             crypto.verify(x509, decoded_sig, payload, 'sha256')
         except Exception as err:
             logging.error("Failed to verify signature: " + str(err))
-            raise authenticator.AuthenticationError("forbidden")
+            raise AuthenticationError("forbidden")
         else:
             logging.info('Successfully verified certificate with signature')
 
@@ -89,7 +85,7 @@ class GameCenterAuthorizer(SocialAuthenticator):
                                            username=username,
                                            response=None)
 
-        raise Return(auth_result)
+        return auth_result
 
     def social_profile(self):
         return False

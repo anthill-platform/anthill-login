@@ -1,35 +1,28 @@
 
-from tornado.gen import coroutine, Return
-from common.options import options
+from anthill.common.options import options
 
-import handler as h
-import common.server
-import common.handler
-import common.access
-import common.sign
-import common.database
-import common.keyvalue
+from . import handler as h
 
-from common.access import AccessToken
+from anthill.common import server, handler, database, keyvalue, access
 
-from model.password import PasswordsModel
-from model.access import AccessModel
-from model.token import AccessTokenModel
-from model.credential import CredentialModel
-from model.account import AccountModel
-from model.gamespace import GamespacesModel
-from model.key import KeyModel
+from . model.password import PasswordsModel
+from . model.access import AccessModel
+from . model.token import AccessTokenModel
+from . model.credential import CredentialModel
+from . model.account import AccountModel
+from . model.gamespace import GamespacesModel
+from . model.key import KeyModel
 
 import logging
-import admin
-import options as _opts
+from . import admin
+from . import options as _opts
 
 
-class AuthServer(common.server.Server):
+class AuthServer(server.Server):
     def __init__(self, db=None):
         super(AuthServer, self).__init__()
 
-        self.db = db or common.database.Database(
+        self.db = db or database.Database(
             host=options.db_host,
             database=options.db_name,
             user=options.db_username,
@@ -37,7 +30,7 @@ class AuthServer(common.server.Server):
 
         self.tokens = AccessTokenModel(self)
 
-        self.cache = common.keyvalue.KeyValueStorage(
+        self.cache = keyvalue.KeyValueStorage(
             host=options.cache_host,
             port=options.cache_port,
             db=options.cache_db,
@@ -92,7 +85,7 @@ class AuthServer(common.server.Server):
 
     def get_handlers(self):
         return [
-            (r"/logout", common.handler.LogoutHandler),
+            (r"/logout", handler.LogoutHandler),
 
             (r"/auth/oauth2callback", h.OAuth2CallbackHandler),
             (r"/auth/dev", h.AuthorizationDevHandler),
@@ -110,13 +103,11 @@ class AuthServer(common.server.Server):
             (r"/extend", h.ExtendHandler)
         ]
 
-    @coroutine
-    def get_auth_location(self, network):
-        raise Return(self.get_host())
+    async def get_auth_location(self, network):
+        return self.get_host()
 
 
 if __name__ == "__main__":
-
-    stt = common.server.init()
-    AccessToken.init([common.access.private()])
-    common.server.start(AuthServer)
+    server.init()
+    access.AccessToken.init([access.private()])
+    server.start(AuthServer)

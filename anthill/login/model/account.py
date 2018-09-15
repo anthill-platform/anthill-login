@@ -1,26 +1,20 @@
 
-import logging
+from anthill.common import access, sign, discover, update
 
-from tornado.gen import coroutine, Return
+from anthill.common.internal import Internal, InternalError
+from anthill.common.access import AccessToken
+from anthill.common.database import DatabaseError
+from anthill.common.model import Model
+from anthill.common.gen import AccessTokenGenerator
 
-import common.access
-import common.sign
-import common.discover
-from common.internal import Internal, InternalError
+from . import authenticator
 
-from common.access import AccessToken
-from common.database import DatabaseError
-from common.model import Model
-import common
-
-import authenticator
-
-from common.gen import AccessTokenGenerator
-from credential import CredentialNotFound
-from gamespace import GamespaceNotFound
-from access import NoScopesFound
+from . credential import CredentialNotFound
+from . gamespace import GamespaceNotFound
+from . access import NoScopesFound
 
 import ujson
+import logging
 
 
 class AccountModel(Model):
@@ -56,10 +50,9 @@ class AccountModel(Model):
     def get_setup_tables(self):
         return ["accounts"]
 
-    @coroutine
-    def setup_table_accounts(self):
+    async def setup_table_accounts(self):
         # that should create an account with @1
-        yield self.create_account()
+        await self.create_account()
 
     def get_setup_db(self):
         return self.db
@@ -67,20 +60,19 @@ class AccountModel(Model):
     def has_delete_account_event(self):
         return True
 
-    @coroutine
-    def accounts_deleted(self, gamespace, accounts, gamespace_only):
+    async def accounts_deleted(self, gamespace, accounts, gamespace_only):
         if gamespace_only:
             return
 
         try:
-            with (yield self.db.acquire()) as db:
-                yield db.execute(
+            async with self.db.acquire() as db:
+                await db.execute(
                     """
                         DELETE
                         FROM `account_credentials`
                         WHERE `account_id` IN %s
                     """, accounts)
-                yield db.execute(
+                await db.execute(
                     """
                         DELETE FROM `accounts`
                         WHERE `account_id` IN %s;
@@ -88,8 +80,7 @@ class AccountModel(Model):
         except DatabaseError as e:
             raise AccountError("Failed to delete accounts: " + e.args[1])
 
-    @coroutine
-    def __import_social_connections__(self, gamespace, credential, username, auth_response):
+    async def __import_social_connections__(self, gamespace, credential, username, auth_response):
         """
         Imports social connections (friends) to the social service.
 
@@ -102,7 +93,7 @@ class AccountModel(Model):
         """
 
         try:
-            yield self.internal.request(
+            await self.internal.request(
                 "social",
                 "import_social",
                 gamespace=gamespace,
@@ -116,17 +107,16 @@ class AccountModel(Model):
                 "failed_to_import_social",
                 info=e.body)
 
-        except common.discover.DiscoveryError as e:
+        except discover.DiscoveryError as e:
             logging.warning("Failed to discover social: " + str(e.code) + " " + e.message)
-            raise Return(False)
+            return False
 
     def __init__(self, application, db):
         self.db = db
         self.application = application
         self.internal = Internal()
 
-    @coroutine
-    def __merge_accounts__(self, attach_to, credential, resolve, gamespace, db=None):
+    async def __merge_accounts__(self, attach_to, credential, resolve, gamespace, db=None):
 
         """
         Merges two credentials together. User should choose between two options:
@@ -165,7 +155,7 @@ class AccountModel(Model):
         :return: A chosen account after merge
         """
 
-        cred_split = common.access.parse_account(credential)
+        cred_split = access.parse_account(credential)
         credential_type = cred_split[0]
 
         account_attach = attach_to.account
@@ -178,7 +168,7 @@ class AccountModel(Model):
 
         same_credential = None
 
-        attached_credentials = yield credentials_data.list_account_credentials(
+        attached_credentials = await credentials_data.list_account_credentials(
             account_attach,
             [credential_type],
             db=db)
@@ -186,17 +176,17 @@ class AccountModel(Model):
         if len(attached_credentials) > 0:
             same_credential = attached_credentials[0]
 
-        accounts = yield credentials_data.list_accounts(
+        accounts = await credentials_data.list_accounts(
             credential_mine, db=db)
 
         tokens = self.application.tokens
 
         if same_credential:
             if same_credential == credential_mine:
-                raise Return(account_attach)
+                return account_attach
 
             if not accounts:
-                account_mine = yield self.create_account(db=db)
+                account_mine = await self.create_account(db=db)
 
                 if account_mine is None:
                     raise AuthenticationError(
@@ -204,7 +194,7 @@ class AccountModel(Model):
                         "internal_error",
                         info="Failed to create new account.")
 
-                yield credentials_data.attach(credential_mine, account_mine, db=db)
+                await credentials_data.attach(credential_mine, account_mine, db=db)
             elif len(accounts) == 1:
                 account_mine = accounts[0]
             else:
@@ -213,32 +203,32 @@ class AccountModel(Model):
                     "multiple_accounts_attached",
                     info="Credential '{0}' has multiple accounts attached.".format(credential_mine))
 
-            yield credentials_data.detach(
+            await credentials_data.detach(
                 credential_attach,
                 account_attach,
                 db=db)
 
-            yield credentials_data.attach(
+            await credentials_data.attach(
                 credential_attach,
                 account_mine, db=db)
 
-            yield tokens.invalidate_account(account_attach)
+            await tokens.invalidate_account(account_attach)
 
-            raise Return(account_mine)
+            return account_mine
 
         else:
             if not accounts:
-                yield credentials_data.attach(
+                await credentials_data.attach(
                     credential_mine,
                     account_attach, db=db)
 
-                raise Return(account_attach)
+                return account_attach
             elif len(accounts) == 1:
                 account_mine = accounts[0]
 
                 if resolve is None:
                     resolve_token = AccessTokenGenerator.generate(
-                        common.sign.TOKEN_SIGNATURE_RSA,
+                        sign.TOKEN_SIGNATURE_RSA,
                         ["resolve_conflict"],
                         {
                             AccessToken.GAMESPACE: gamespace
@@ -258,7 +248,7 @@ class AccountModel(Model):
                     }
 
                     try:
-                        profiles = yield self.internal.request(
+                        profiles = await self.internal.request(
                             "profile",
                             "mass_profiles",
                             action="get_public",
@@ -279,65 +269,62 @@ class AccountModel(Model):
                     )
                 else:
 
-                    @coroutine
-                    def not_mine():
-                        yield credentials_data.detach(
+                    async def not_mine():
+                        await credentials_data.detach(
                             credential_mine,
                             account_mine,
                             accounts_data=accounts_data,
                             db=db)
 
-                        yield credentials_data.attach(
+                        await credentials_data.attach(
                             credential_mine,
                             account_attach,
                             db=db)
 
-                        raise Return(account_attach)
+                        return account_attach
 
-                    @coroutine
-                    def local():
+                    async def local():
 
-                        yield credentials_data.detach(
+                        await credentials_data.detach(
                             credential_mine,
                             account_mine,
                             accounts_data=accounts_data,
                             db=db)
 
-                        yield credentials_data.attach(
+                        await credentials_data.attach(
                             credential_mine,
                             account_attach,
                             db=db)
 
-                        anonymous_credentials = yield credentials_data.list_account_credentials(
+                        anonymous_credentials = await credentials_data.list_account_credentials(
                             account_mine,
                             AccountModel.LOCAL_CREDENTIALS,
                             db=db)
 
                         for anon_credential in anonymous_credentials:
-                            yield credentials_data.attach(
+                            await credentials_data.attach(
                                 anon_credential,
                                 account_attach,
                                 db=db)
 
-                        yield tokens.invalidate_account(account_mine)
+                        await tokens.invalidate_account(account_mine)
 
-                        raise Return(account_attach)
+                        return account_attach
 
-                    @coroutine
-                    def remote():
-                        yield credentials_data.detach(
+                    async def remote():
+                        await credentials_data.detach(
                             credential_attach,
                             account_attach,
                             db=db)
 
-                        yield tokens.invalidate_account(account_attach)
+                        await tokens.invalidate_account(account_attach)
 
-                        yield credentials_data.attach(
+                        await credentials_data.attach(
                             credential_attach,
                             account_mine,
                             db=db)
 
-                        raise Return(account_mine)
+                        return account_mine
 
                     merge_options = {
                         "not_mine": not_mine,
@@ -346,8 +333,8 @@ class AccountModel(Model):
                     }
 
                     try:
-                        result = yield merge_options[resolve]()
-                        raise Return(result)
+                        result = await merge_options[resolve]()
+                        return result
 
                     except KeyError:
                         raise AuthenticationError(
@@ -361,8 +348,7 @@ class AccountModel(Model):
                     "multiple_accounts_attached",
                     info="Credential '{0}' has multiple accounts attached.".format(credential_mine))
 
-    @coroutine
-    def __multiple_accounts_attached__(self, gamespace_id, credential, accounts):
+    async def __multiple_accounts_attached__(self, gamespace_id, credential, accounts):
 
         """
         User is in a state when same credential attached to a two (or more) different accounts:
@@ -379,7 +365,7 @@ class AccountModel(Model):
         # generate special resolve_token for a user
 
         resolve_token = AccessTokenGenerator.generate(
-            common.sign.TOKEN_SIGNATURE_RSA,
+            sign.TOKEN_SIGNATURE_RSA,
             ["resolve_conflict"],
             {
                 AccessToken.GAMESPACE: gamespace_id
@@ -390,7 +376,7 @@ class AccountModel(Model):
         try:
             # collect some information about these accounts
 
-            account_profiles = yield self.internal.request(
+            account_profiles = await self.internal.request(
                 "profile", "mass_profiles",
                 accounts=accounts,
                 gamespace=gamespace_id,
@@ -414,8 +400,7 @@ class AccountModel(Model):
             accounts=accounts_summary,
             info="Conflict: More than one credentials attached to this account.")
 
-    @coroutine
-    def attach_account(self, args, env=None):
+    async def attach_account(self, args, env=None):
 
         """
         Attaches a credential from token <access_token> to an account from token <attach_to>
@@ -423,7 +408,7 @@ class AccountModel(Model):
         try:
             access_token = args["access_token"]
             attach_to = args["attach_to"]
-            requested_scopes = common.access.parse_scopes(args["scopes"])
+            requested_scopes = access.parse_scopes(args["scopes"])
         except KeyError:
             raise AuthenticationError(
                 400,
@@ -435,13 +420,13 @@ class AccountModel(Model):
         access_token = AccessToken(access_token)
         attach_to = AccessToken(attach_to)
 
-        if not (yield tokens.validate(access_token)):
+        if not (await tokens.validate(access_token)):
             raise AuthenticationError(
                 403,
                 "access_token_invalid",
                 info="Access token is not valid")
 
-        if not (yield tokens.validate(attach_to)):
+        if not (await tokens.validate(attach_to)):
             raise AuthenticationError(
                 403,
                 "attach_to_token_invalid",
@@ -461,12 +446,12 @@ class AccountModel(Model):
 
         gamespace_id = attach_to_gamespace
 
-        with (yield self.db.acquire()) as db:
+        async with self.db.acquire() as db:
 
             # take the credential from attach_to
             credential = access_token.name
 
-            account = yield self.__merge_accounts__(
+            account = await self.__merge_accounts__(
                 attach_to,
                 credential,
                 None,
@@ -476,7 +461,7 @@ class AccountModel(Model):
             logging.debug("Merged into {0}".format(account))
 
             # if there's no conflict, complete with last step
-            result = yield self.proceed_authentication(
+            result = await self.proceed_authentication(
                 account,
                 credential,
                 gamespace_id,
@@ -485,10 +470,9 @@ class AccountModel(Model):
                 env=env,
                 db=db)
 
-            raise Return(result)
+            return result
 
-    @coroutine
-    def authorize(self, args, env=None):
+    async def authorize(self, args, env=None):
         """
         The method that authenticates a user.
         :param args:
@@ -506,7 +490,7 @@ class AccountModel(Model):
 
         try:
             cred_type = args["credential"]
-            requested_scopes = common.access.parse_scopes(args["scopes"])
+            requested_scopes = access.parse_scopes(args["scopes"])
 
             gamespace_id = args.get("gamespace_id")
 
@@ -539,7 +523,7 @@ class AccountModel(Model):
         if attach_to is not None:
             token = AccessToken(attach_to)
 
-            if not (yield tokens.validate(token)):
+            if not (await tokens.validate(token)):
                 raise AuthenticationError(
                     403,
                     "attach_to_token_invalid",
@@ -547,11 +531,11 @@ class AccountModel(Model):
 
             attach_to = token
 
-        with (yield self.db.acquire()) as db:
+        async with self.db.acquire() as db:
 
             if not gamespace_id:
                 try:
-                    gamespace_id = yield self.application.gamespaces.find_gamespace(
+                    gamespace_id = await self.application.gamespaces.find_gamespace(
                         gamespace_name,
                         db=db)
 
@@ -562,7 +546,7 @@ class AccountModel(Model):
                         info="Gamespace '{0}' was not found.".format(gamespace_name))
 
             try:
-                result = yield credential_authorizer.authorize(
+                result = await credential_authorizer.authorize(
                     gamespace_id,
                     args,
                     db=db,
@@ -577,7 +561,7 @@ class AccountModel(Model):
                     error=e.code)
 
             if result.response is not None and result.response.import_social:
-                yield self.__import_social_connections__(
+                await self.__import_social_connections__(
                     gamespace_id,
                     result.credential,
                     result.username,
@@ -586,7 +570,7 @@ class AccountModel(Model):
             credential = result.credential + ":" + result.username
 
             if attach_to:
-                account = yield self.__merge_accounts__(
+                account = await self.__merge_accounts__(
                     attach_to,
                     credential,
                     None,
@@ -595,12 +579,12 @@ class AccountModel(Model):
 
                 logging.debug("Merged into {0}".format(account))
             else:
-                accounts = yield credentials_data.list_accounts(
+                accounts = await credentials_data.list_accounts(
                     credential,
                     db=db)
 
                 if not accounts:
-                    account = yield self.create_account(db=db)
+                    account = await self.create_account(db=db)
 
                     if account is None:
                         raise AuthenticationError(
@@ -610,7 +594,7 @@ class AccountModel(Model):
 
                     logging.info("New account created: '%s'.", account)
 
-                    yield credentials_data.attach(
+                    await credentials_data.attach(
                         credential,
                         account,
                         db=db)
@@ -618,14 +602,14 @@ class AccountModel(Model):
                 elif len(accounts) == 1:
                     account = accounts[0]
                 else:
-                    yield self.__multiple_accounts_attached__(
+                    await self.__multiple_accounts_attached__(
                         gamespace_id,
                         credential,
                         accounts)
 
                     return
 
-            result = yield self.proceed_authentication(
+            result = await self.proceed_authentication(
                 account,
                 credential,
                 gamespace_id,
@@ -634,10 +618,9 @@ class AccountModel(Model):
                 env=env,
                 db=db)
 
-            raise Return(result)
+            return result
 
-    @coroutine
-    def proceed_authentication(self, account, credential, gamespace_id, requested_scopes, args, env, db=None):
+    async def proceed_authentication(self, account, credential, gamespace_id, requested_scopes, args, env, db=None):
 
         """
         The last one, final step in authorization. All conflicts are resolved, all accesses are gathered.
@@ -675,11 +658,11 @@ class AccountModel(Model):
         gamespaces_data = self.application.gamespaces
         cred_types = self.application.credentials.credential_types
 
-        cred_type, username = common.access.parse_account(credential)
+        cred_type, username = access.parse_account(credential)
 
         auth_as = args.get("as")
         if auth_as:
-            if not common.access.validate_token_name(auth_as):
+            if not access.validate_token_name(auth_as):
                 raise AuthenticationError(
                     400,
                     "bad_auth_as",
@@ -700,7 +683,7 @@ class AccountModel(Model):
 
         if credential_authenticator.social_profile():
             try:
-                profile_data = yield self.internal.request(
+                profile_data = await self.internal.request(
                     "social",
                     "attach_account",
                     gamespace=gamespace_id,
@@ -716,7 +699,7 @@ class AccountModel(Model):
         should_have = args.get("should_have", "*")
 
         if should_have != "*":
-            should_have_scopes = common.access.parse_scopes(should_have)
+            should_have_scopes = access.parse_scopes(should_have)
 
         def _have_scope(a_scope):
             return should_have == "*" or (a_scope in should_have_scopes)
@@ -724,14 +707,14 @@ class AccountModel(Model):
         # the scopes user has
 
         try:
-            user_scopes = yield access_data.get_account_access(gamespace_id, account, db=db)
+            user_scopes = await access_data.get_account_access(gamespace_id, account, db=db)
         except NoScopesFound:
-            user_scopes = []
+            user_scopes = set()
 
         # the scopes gamespace has
 
         try:
-            gamespace_scopes_data = yield gamespaces_data.get_gamespace_access_scopes(
+            gamespace_scopes_data = await gamespaces_data.get_gamespace_access_scopes(
                 gamespace_id, db=db)
 
         except GamespaceNotFound:
@@ -740,9 +723,9 @@ class AccountModel(Model):
                 "no_such_gamespace",
                 info="Gamespace ID '{0}' was not found.".format(gamespace_id))
 
-        gamespace_scopes = common.access.parse_scopes(gamespace_scopes_data)
+        gamespace_scopes = access.parse_scopes(gamespace_scopes_data)
 
-        user_scopes.extend(gamespace_scopes)
+        user_scopes.update(gamespace_scopes)
 
         for scope in requested_scopes:
             if (scope not in user_scopes) and _have_scope(scope):
@@ -786,7 +769,7 @@ class AccountModel(Model):
                     "bad_account_info",
                     info="The field 'info' should be a JSON dictionary.")
 
-            yield self.update_account_info(account, account_info)
+            await self.update_account_info(account, account_info)
 
         # FINAL STEP: access token sign
 
@@ -800,7 +783,7 @@ class AccountModel(Model):
             additional_containers[AccessToken.ISSUER] = "login"
 
         res = AccessTokenGenerator.generate(
-            common.sign.TOKEN_SIGNATURE_RSA,
+            sign.TOKEN_SIGNATURE_RSA,
             allowed_scopes,
             additional_containers,
             credential)
@@ -815,7 +798,7 @@ class AccountModel(Model):
         tokens = self.application.tokens
 
         if unique:
-            yield tokens.save_token(
+            await tokens.save_token(
                 account,
                 uuid,
                 expires,
@@ -826,7 +809,7 @@ class AccountModel(Model):
         if credential_authenticator.social_profile():
             try:
                 if profile_data:
-                    yield self.internal.request(
+                    await self.internal.request(
                         "profile",
                         "update_profile",
                         fields=profile_data,
@@ -842,15 +825,14 @@ class AccountModel(Model):
 
         # here we go
 
-        raise Return({
+        return {
             "token": token,
             "account": account,
             "credential": credential,
             "scopes": scopes
-        })
+        }
 
-    @coroutine
-    def delete_account(self, account_id, db=None):
+    async def delete_account(self, account_id, db=None):
 
         """
         Deletes an account.
@@ -858,13 +840,13 @@ class AccountModel(Model):
 
         credentials_data = self.application.credentials
 
-        credentials = yield credentials_data.list_account_credentials
+        credentials = await credentials_data.list_account_credentials
 
         for credential in credentials:
-            yield credentials_data.detach(credential, account_id, self, db=db)
+            await credentials_data.detach(credential, account_id, self, db=db)
 
         try:
-            yield (db or self.db).execute(
+            await (db or self.db).execute(
                 """
                     DELETE FROM `accounts`
                     WHERE `account_id`=%s;
@@ -872,24 +854,22 @@ class AccountModel(Model):
         except DatabaseError as e:
             raise AccountError("Failed to delete account: " + e.args[1])
 
-    @coroutine
-    def lookup_account(self, credential, db=None):
+    async def lookup_account(self, credential, db=None):
 
         credentials = self.application.credentials
 
         try:
-            account = yield credentials.get_account(credential, db=db)
+            account = await credentials.get_account(credential, db=db)
         except CredentialNotFound:
-            account = yield self.create_account(db=db)
-            yield credentials.attach(credential, account, db=db)
-            raise Return(account)
+            account = await self.create_account(db=db)
+            await credentials.attach(credential, account, db=db)
+            return account
         else:
-            raise Return(account)
+            return account
 
-    @coroutine
-    def check_account_exists(self, account, db=None):
+    async def check_account_exists(self, account, db=None):
         try:
-            exists = yield (db or self.db).get(
+            exists = await (db or self.db).get(
                 """
                     SELECT 1
                     FROM `accounts`
@@ -898,16 +878,15 @@ class AccountModel(Model):
         except DatabaseError as e:
             raise AccountError("Failed to get account info: " + e.args[1])
         else:
-            raise Return(bool(exists))
+            return bool(exists)
 
-    @coroutine
-    def get_account_info(self, account, db=None):
+    async def get_account_info(self, account, db=None):
         """
         Returns account information
         """
 
         try:
-            info = yield (db or self.db).get(
+            info = await (db or self.db).get(
                 """
                     SELECT `account_info`
                     FROM `accounts`
@@ -918,12 +897,11 @@ class AccountModel(Model):
         else:
 
             if not info:
-                raise Return(None)
+                return None
 
-            raise Return(info["account_info"])
+            return info["account_info"]
 
-    @coroutine
-    def update_account_info(self, account, account_info, db=None):
+    async def update_account_info(self, account, account_info, db=None):
         """
         Updates account information
         """
@@ -931,11 +909,11 @@ class AccountModel(Model):
         if not isinstance(account_info, dict):
             raise AccountError("Should be a dict")
 
-        value = yield self.get_account_info(account, db=db)
-        common.update(value, account_info)
+        value = await self.get_account_info(account, db=db)
+        update(value, account_info)
 
         try:
-            yield (db or self.db).execute(
+            await (db or self.db).execute(
                 """
                     UPDATE `accounts`
                     SET `account_info`=%s
@@ -944,8 +922,7 @@ class AccountModel(Model):
         except DatabaseError as e:
             raise AccountError("Failed to update account info: " + e.args[1])
 
-    @coroutine
-    def create_account(self, db=None):
+    async def create_account(self, db=None):
         """
         Creates a new account in the system.
 
@@ -953,7 +930,7 @@ class AccountModel(Model):
         """
 
         try:
-            result = yield (db or self.db).insert(
+            result = await (db or self.db).insert(
                 """
                     INSERT INTO `accounts`
                     (`account_info`)
@@ -964,10 +941,9 @@ class AccountModel(Model):
 
         self.application.monitor_rate("accounts", "created")
 
-        raise Return(str(result))
+        return str(result)
 
-    @coroutine
-    def resolve_conflict(self, resolve_token, method_to_resolve, args, env=None):
+    async def resolve_conflict(self, resolve_token, method_to_resolve, args, env=None):
         """
         Resolves an existing conflict. Please see `__merge_accounts__` for more information.
 
@@ -979,7 +955,7 @@ class AccountModel(Model):
 
         try:
             resolve_with = args["resolve_with"]
-            requested_scopes = common.access.parse_scopes(args["scopes"])
+            requested_scopes = access.parse_scopes(args["scopes"])
             attach_to = args.get("attach_to")
         except KeyError:
             raise AuthenticationError(
@@ -992,12 +968,11 @@ class AccountModel(Model):
         credential = resolve_token.name
         gamespace = resolve_token.get(AccessToken.GAMESPACE)
 
-        @coroutine
-        def _multiple_accounts_attached():
+        async def _multiple_accounts_attached():
             select_option = args.get("resolve_with", None)
 
             credentials = self.application.credentials
-            accounts = yield credentials.list_accounts(credential, db=db)
+            accounts = await credentials.list_accounts(credential, db=db)
 
             try:
                 accounts.remove(select_option)
@@ -1008,32 +983,31 @@ class AccountModel(Model):
                     info="No such account to select: '{0}'.".format(select_option))
 
             for other_account in accounts:
-                yield credentials.detach(
+                await credentials.detach(
                     credential,
                     other_account,
                     accounts_data=self,
                     db=db)
 
-            raise Return(select_option)
+            return select_option
 
-        @coroutine
-        def _merge_required():
+        async def _merge_required():
             attach_to_token = AccessToken(attach_to)
 
-            if not (yield tokens.validate(attach_to_token)):
+            if not (await tokens.validate(attach_to_token)):
                 raise AuthenticationError(
                     403,
                     "attach_to_token_invalid",
                     info="Token attach to is not valid")
 
-            res = yield self.__merge_accounts__(
+            res = await self.__merge_accounts__(
                 attach_to_token,
                 credential,
                 resolve_with,
                 gamespace,
                 db=db)
 
-            raise Return(res)
+            return res
 
         resolve_methods = {
             "merge_required": _merge_required,
@@ -1048,10 +1022,10 @@ class AccountModel(Model):
 
         method_to_resolve = resolve_methods[method_to_resolve]
 
-        with (yield self.db.acquire()) as db:
-            account = yield method_to_resolve()
+        async with self.db.acquire() as db:
+            account = await method_to_resolve()
             logging.debug("Resolved with: {0}".format(account))
-            result = yield self.proceed_authentication(
+            result = await self.proceed_authentication(
                 account,
                 credential,
                 gamespace,
@@ -1060,7 +1034,7 @@ class AccountModel(Model):
                 env=env,
                 db=db)
 
-        raise Return(result)
+        return result
 
 
 class AuthenticationError(Exception):

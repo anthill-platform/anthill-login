@@ -1,12 +1,8 @@
-import logging
+
+from anthill.common import access
+from anthill.common.model import Model
+from . password import UserNotFound, BadPassword, BadNameFormat
 import abc
-
-from tornado.gen import coroutine, Return
-
-import common.access
-from common.model import Model
-
-from password import UserNotFound, BadPassword, BadNameFormat
 
 
 class Authenticator(Model):
@@ -30,11 +26,10 @@ class Authenticator(Model):
 
         raise NotImplementedError()
 
-    @coroutine
-    def get_key(self, gamespace, key_name):
+    async def get_key(self, gamespace, key_name):
         keys = self.application.keys
-        key = yield keys.get_key_cached(gamespace, key_name, kv=self.application.cache)
-        raise Return(key)
+        key = await keys.get_key_cached(gamespace, key_name, kv=self.application.cache)
+        return key
 
     def social_profile(self):
         """
@@ -53,29 +48,27 @@ class AuthoritativeAuthenticator(Authenticator):
     def __init__(self, application, credential_type):
         super(AuthoritativeAuthenticator, self).__init__(application, credential_type)
 
-    @coroutine
-    def authorize(self, gamespace, args, db=None, env=None):
+    async def authorize(self, gamespace, args, db=None, env=None):
         try:
             credential, username, password = args["credential"], args["username"], args["key"]
         except KeyError:
             raise AuthenticationError("missing_argument")
 
-        result = yield self.authorize_username_password(
+        result = await self.authorize_username_password(
             gamespace,
             credential,
             username,
             password,
             db=db)
 
-        raise Return(result)
+        return result
 
-    @coroutine
-    def authorize_username_password(self, gamespace, credential, username, password, db=None):
+    async def authorize_username_password(self, gamespace, credential, username, password, db=None):
         passwords = self.application.passwords
         full_credential = credential + ":" + username
 
         try:
-            yield passwords.login(full_credential, password, db)
+            await passwords.login(full_credential, password, db)
         except BadPassword:
             raise AuthenticationError("bad_username_password")
         except BadNameFormat:
@@ -86,7 +79,7 @@ class AuthoritativeAuthenticator(Authenticator):
             username=username,
             response=None)
 
-        raise Return(auth_result)
+        return auth_result
 
 
 class AccessTokenAuthenticator(AuthoritativeAuthenticator):
@@ -97,8 +90,7 @@ class AccessTokenAuthenticator(AuthoritativeAuthenticator):
     def __init__(self, application):
         super(AccessTokenAuthenticator, self).__init__(application, "token")
 
-    @coroutine
-    def authorize(self, gamespace, args, db=None, env=None):
+    async def authorize(self, gamespace, args, db=None, env=None):
 
         token_cache = self.application.token_cache
 
@@ -106,15 +98,15 @@ class AccessTokenAuthenticator(AuthoritativeAuthenticator):
             raise AuthenticationError("Token cache is not defined.", code=500)
 
         token_data = args["access_token"]
-        token = common.access.AccessToken(token_data)
+        token = access.AccessToken(token_data)
 
-        valid = yield token_cache.validate(token)
+        valid = await token_cache.validate(token)
         if valid:
 
-            if gamespace != token.get(common.access.AccessToken.GAMESPACE):
+            if gamespace != token.get(access.AccessToken.GAMESPACE):
                 raise AuthenticationError("forbidden")
 
-            full_credential = common.access.parse_account(token.name)
+            full_credential = access.parse_account(token.name)
             credential = full_credential[0]
             username = full_credential[1]
 
@@ -123,7 +115,7 @@ class AccessTokenAuthenticator(AuthoritativeAuthenticator):
                 username=username,
                 response=None)
 
-            raise Return(result)
+            return result
 
         raise AuthenticationError("forbidden")
 
@@ -136,44 +128,42 @@ class AnonymousAuthenticator(AuthoritativeAuthenticator):
     def __init__(self, application):
         super(AnonymousAuthenticator, self).__init__(application, "anonymous")
 
-    @coroutine
-    def authorize(self, gamespace, args, db=None, env=None):
+    async def authorize(self, gamespace, args, db=None, env=None):
         try:
-            result = yield AuthoritativeAuthenticator.authorize(
+            result = await AuthoritativeAuthenticator.authorize(
                 self,
                 gamespace,
                 args,
                 db=db)
 
-            raise Return(result)
+            return result
         except UserNotFound:
 
             try:
-                yield self.register(args, db=db)
+                await self.register(args, db=db)
             except BadNameFormat:
                 raise AuthenticationError("bad_username_format")
 
             # then try to authorise
-            result = yield AuthoritativeAuthenticator.authorize(
+            result = await AuthoritativeAuthenticator.authorize(
                 self,
                 gamespace,
                 args,
                 db=db)
 
-            raise Return(result)
+            return result
 
-    @coroutine
-    def register(self, args, db=None):
+    async def register(self, args, db=None):
         passwords = self.application.passwords
 
         credential, username, password = args["credential"], args["username"], args["key"]
 
-        account_id = yield passwords.create(
+        account_id = await passwords.create(
             credential + ":" + username,
             password,
             db=db)
 
-        raise Return(account_id)
+        return account_id
 
 
 class AuthenticationError(Exception):
@@ -196,10 +186,9 @@ class DevAuthenticator(AuthoritativeAuthenticator):
     def __init__(self, application):
         super(DevAuthenticator, self).__init__(application, "dev")
 
-    @coroutine
-    def authorize(self, gamespace, args, db=None, env=None):
+    async def authorize(self, gamespace, args, db=None, env=None):
         try:
-            result = yield AuthoritativeAuthenticator.authorize(
+            result = await AuthoritativeAuthenticator.authorize(
                 self,
                 gamespace,
                 args,
@@ -209,4 +198,4 @@ class DevAuthenticator(AuthoritativeAuthenticator):
         except UserNotFound:
             raise AuthenticationError("bad_username_password")
         else:
-            raise Return(result)
+            return result

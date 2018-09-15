@@ -1,16 +1,15 @@
-from tornado.gen import coroutine, Return, sleep
+from tornado.gen import sleep
 from tornado.testing import gen_test
 
-# noinspection PyUnresolvedReferences
-from server import AuthServer
+from ..server import AuthServer
+from .. import options as _opts
 
-from common.handler import AuthenticatedHandler
-from common.testing import AcceptanceTestCase
-from common.access import AccessToken
-from common.gen import AccessTokenGenerator
-from common.sign import RSAAccessTokenSignature, TOKEN_SIGNATURE_RSA
-from common.access import scoped
-import options as _opts
+from anthill.common.handler import AuthenticatedHandler
+from anthill.common.testing import AcceptanceTestCase
+from anthill.common.access import AccessToken
+from anthill.common.gen import AccessTokenGenerator
+from anthill.common.sign import RSAAccessTokenSignature, TOKEN_SIGNATURE_RSA
+from anthill.common.access import scoped
 
 import tempfile
 import os
@@ -66,8 +65,7 @@ jqhNID78KIZf+tf5oTHtwG/QsZEAE/ClmCoBL4+VILE=
 
     # noinspection PyUnresolvedReferences
     @classmethod
-    @coroutine
-    def co_setup_acceptance_tests(cls):
+    async def co_setup_acceptance_tests(cls):
         cls.application.add_handlers(r".*", [
             (r"/test01", Test01AuthenticatedHandler),
             (r"/test02", Test02AuthenticatedHandler),
@@ -79,8 +77,8 @@ jqhNID78KIZf+tf5oTHtwG/QsZEAE/ClmCoBL4+VILE=
         pub, pub_path = tempfile.mkstemp(text=True)
         pem, pem_path = tempfile.mkstemp(text=True)
 
-        os.write(pub, AccessTokenTestCase.ANTHILL_KEY_PUB)
-        os.write(pem, AccessTokenTestCase.ANTHILL_KEY_PEM)
+        os.write(pub, AccessTokenTestCase.ANTHILL_KEY_PUB.encode())
+        os.write(pem, AccessTokenTestCase.ANTHILL_KEY_PEM.encode())
 
         AccessToken.init([RSAAccessTokenSignature(
             private_key=pem_path,
@@ -90,11 +88,10 @@ jqhNID78KIZf+tf5oTHtwG/QsZEAE/ClmCoBL4+VILE=
         os.close(pub)
         os.close(pem)
 
-    @coroutine
-    def generate_access_token_key(self, allowed_scopes, credential=TEST_CREDENTIAL,
-                                  account=AcceptanceTestCase.TOKEN_ACCOUNT,
-                                  gamespace_id=AcceptanceTestCase.TOKEN_GAMESPACE,
-                                  auth_as=AUTH_AS, unique=True, max_time=None):
+    async def generate_access_token_key(self, allowed_scopes, credential=TEST_CREDENTIAL,
+                                        account=AcceptanceTestCase.TOKEN_ACCOUNT,
+                                        gamespace_id=AcceptanceTestCase.TOKEN_GAMESPACE,
+                                        auth_as=AUTH_AS, unique=True, max_time=None):
 
         additional_containers = {
             AccessToken.ACCOUNT: str(account),
@@ -118,18 +115,16 @@ jqhNID78KIZf+tf5oTHtwG/QsZEAE/ClmCoBL4+VILE=
 
         # store the token in key/value storage
         if unique:
-            yield self.application.tokens.save_token(account, uuid, expires, name=auth_as)
+            await self.application.tokens.save_token(account, uuid, expires, name=auth_as)
 
-        raise Return(token)
+        return token
 
-    @coroutine
-    def generate_access_token(self, *args, **kwargs):
-        key = yield self.generate_access_token_key(*args, **kwargs)
-        raise Return(AccessToken(key))
+    async def generate_access_token(self, *args, **kwargs):
+        key = await self.generate_access_token_key(*args, **kwargs)
+        return AccessToken(key)
 
-    @coroutine
-    def check_token(self, scopes):
-        key = yield self.generate_access_token_key(scopes)
+    async def check_token(self, scopes):
+        key = await self.generate_access_token_key(scopes)
         token = AccessToken(key)
         self.assertTrue(token.is_valid(), "Generated access token is not valid")
         self.assertEqual(token.get(AccessToken.ACCOUNT), AcceptanceTestCase.TOKEN_ACCOUNT)
@@ -139,60 +134,60 @@ jqhNID78KIZf+tf5oTHtwG/QsZEAE/ClmCoBL4+VILE=
         self.assertIn(AccessToken.EXPIRATION_DATE, token.fields)
         self.assertIn(AccessToken.ISSUED_AT, token.fields)
         self.assertIn(AccessToken.UUID, token.fields)
-        self.assertEqual(token.scopes, scopes)
+        self.assertSetEqual(token.scopes, scopes)
 
     @gen_test
-    def test_token(self):
-        yield self.check_token(["test_a"])
-        yield self.check_token(["test_a", "test_b"])
-        yield self.check_token([])
+    async def test_token(self):
+        await self.check_token({"test_a"})
+        await self.check_token({"test_a", "test_b"})
+        await self.check_token(set())
 
     @gen_test
-    def test_validation(self):
-        token = yield self.generate_access_token(["test_a", "test_b"])
-        self.assertTrue((yield self.application.tokens.validate(token)), "Generated access token is not valid")
+    async def test_validation(self):
+        token = await self.generate_access_token(["test_a", "test_b"])
+        self.assertTrue((await self.application.tokens.validate(token)), "Generated access token is not valid")
 
     @gen_test
-    def test_expiration(self):
-        token = yield self.generate_access_token(["test_a", "test_b"], max_time=1)
-        self.assertTrue((yield self.application.tokens.validate(token)), "Generated access token is not valid")
-        yield sleep(1)
-        self.assertFalse((yield self.application.tokens.validate(token)),
+    async def test_expiration(self):
+        token = await self.generate_access_token(["test_a", "test_b"], max_time=1)
+        self.assertTrue((await self.application.tokens.validate(token)), "Generated access token is not valid")
+        await sleep(1)
+        self.assertFalse((await self.application.tokens.validate(token)),
                          "Access token should not be valid at that point")
 
     @gen_test
-    def test_invalidation(self):
-        token = yield self.generate_access_token(["test_a", "test_b"], max_time=1)
-        self.assertTrue((yield self.application.tokens.validate(token)), "Generated access token is not valid")
-        yield self.application.tokens.invalidate_uuid(token.get(AccessToken.ACCOUNT), token.get(AccessToken.UUID))
-        self.assertFalse((yield self.application.tokens.validate(token)),
+    async def test_invalidation(self):
+        token = await self.generate_access_token(["test_a", "test_b"], max_time=1)
+        self.assertTrue((await self.application.tokens.validate(token)), "Generated access token is not valid")
+        await self.application.tokens.invalidate_uuid(token.get(AccessToken.ACCOUNT), token.get(AccessToken.UUID))
+        self.assertFalse((await self.application.tokens.validate(token)),
                          "Access token should not be valid at that point")
 
     @gen_test
-    def test_as(self):
-        token1 = yield self.generate_access_token(
+    async def test_as(self):
+        token1 = await self.generate_access_token(
             ["test_a", "test_b"], auth_as="test1")
-        self.assertTrue((yield self.application.tokens.validate(token1)), "Generated access token is not valid")
+        self.assertTrue((await self.application.tokens.validate(token1)), "Generated access token is not valid")
         # generate second token with the same `auth_as` option
-        token2 = yield self.generate_access_token(["test_a", "test_b"], auth_as="test1")
-        self.assertTrue((yield self.application.tokens.validate(token2)), "Generated access token is not valid")
-        self.assertFalse((yield self.application.tokens.validate(token1)),
+        token2 = await self.generate_access_token(["test_a", "test_b"], auth_as="test1")
+        self.assertTrue((await self.application.tokens.validate(token2)), "Generated access token is not valid")
+        self.assertFalse((await self.application.tokens.validate(token1)),
                          "Access token should not be valid at that point")
 
     @gen_test
-    def test_unique(self):
-        token1 = yield self.generate_access_token(
+    async def test_unique(self):
+        token1 = await self.generate_access_token(
             ["test_a", "test_b"], auth_as="test1", unique=False)
-        self.assertTrue((yield self.application.tokens.validate(token1)), "Generated access token is not valid")
+        self.assertTrue((await self.application.tokens.validate(token1)), "Generated access token is not valid")
         # generate second token with the same `auth_as` option
-        token2 = yield self.generate_access_token(["test_a", "test_b"], auth_as="test1", unique=False)
-        self.assertTrue((yield self.application.tokens.validate(token2)), "Generated access token is not valid")
-        self.assertTrue((yield self.application.tokens.validate(token1)),
+        token2 = await self.generate_access_token(["test_a", "test_b"], auth_as="test1", unique=False)
+        self.assertTrue((await self.application.tokens.validate(token2)), "Generated access token is not valid")
+        self.assertTrue((await self.application.tokens.validate(token1)),
                         "Access token should be still valid at that point")
 
     @gen_test
-    def test_handler(self):
-        key = yield self.generate_access_token_key(["test_a", "test_b"])
+    async def test_handler(self):
+        key = await self.generate_access_token_key(["test_a", "test_b"])
 
-        yield self.get_success("test01", query_args={"access_token": key}, pass_access_token=False, json_response=False)
-        yield self.get_fail("test02", 403, query_args={"access_token": key}, pass_access_token=False)
+        await self.get_success("test01", query_args={"access_token": key}, pass_access_token=False, json_response=False)
+        await self.get_fail("test02", 403, query_args={"access_token": key}, pass_access_token=False)
