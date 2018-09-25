@@ -146,10 +146,10 @@ class EditAccountController(a.AdminController):
                 "name": token["name"],
                 "ttl": "{:0>8}".format(datetime.timedelta(seconds=token["ttl"]))
             }
-            for uuid, token in uuids.iteritems()
+            for uuid, token in uuids.items()
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
 
@@ -163,7 +163,7 @@ class EditAccountController(a.AdminController):
 
         t1 = [
             a.link("invalidate_uuid", uuid, badge=token["name"], icon="tag", uuid=uuid, account=account)
-            for uuid, token in data["tokens"].iteritems()
+            for uuid, token in data["tokens"].items()
         ]
 
         if t1:
@@ -242,7 +242,7 @@ class EditAuthoritativeController(a.AdminController):
             "credential": credential
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
         return [
@@ -365,7 +365,7 @@ class EditCredentialController(a.AdminController):
             "account": account
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
         return [
@@ -563,7 +563,7 @@ class GamespaceController(a.AdminController):
             "names": names
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
         return [
@@ -665,7 +665,7 @@ class GamespaceNameController(a.AdminController):
             "gamespace_data": gamespace_data
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
         return [
@@ -718,7 +718,7 @@ class GamespacesController(a.AdminController):
             "gamespaces": gamespaces
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
         return [
@@ -1041,7 +1041,7 @@ class NewAPIKeyController(a.AdminController):
     async def get(self):
         key_types = {
             api_type_name: api_type_name
-            for api_type_name, api_type in apis.api_types.iteritems()
+            for api_type_name, api_type in apis.api_types.items()
         }
 
         return {

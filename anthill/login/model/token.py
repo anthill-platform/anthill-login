@@ -108,7 +108,7 @@ class AccessTokenModel(Model, AccessTokenCache):
             account_key = "account:" + str(account)
             uuids = await db.hgetall(account_key, encoding="utf-8")
             result = {}
-            for uuid, name in uuids.iteritems():
+            for uuid, name in uuids.items():
                 key = "id:" + uuid
                 ttl = await db.ttl(key)
                 if ttl:

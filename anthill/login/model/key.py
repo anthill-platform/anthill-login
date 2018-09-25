@@ -54,8 +54,7 @@ def decode(secret, encoded_value):
         return encoded_value
 
     cipher = AES.new(secret)
-    return cipher.decrypt(
-        base64.b64decode(encoded_value)).rstrip(PADDING)
+    return cipher.decrypt(base64.b64decode(encoded_value)).decode("utf-8").rstrip(PADDING)
 
 
 class KeyModel(Model):

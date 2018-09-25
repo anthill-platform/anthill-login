@@ -13,7 +13,6 @@ from . model.account import AccountModel
 from . model.gamespace import GamespacesModel
 from . model.key import KeyModel
 
-import logging
 from . import admin
 from . import options as _opts
 

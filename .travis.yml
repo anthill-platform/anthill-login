@@ -1,11 +1,16 @@
 language: python
 python:
-  - "2.7"
+  - "3.7"
+matrix:
+  include:
+    - python: 3.7
+      dist: xenial
+      sudo: true
 virtualenv:
     system_site_package: true
 env:
   global:
-    - PYTHONPATH=$PYTHONPATH:$TRAVIS_BUILD_DIR/src:$TRAVIS_BUILD_DIR/common/src
+    - PYTHONPATH=$PYTHONPATH:$TRAVIS_BUILD_DIR/common
 addons:
   apt:
     sources:
@@ -25,7 +30,7 @@ cache:
    - $TRAVIS_BUILD_DIR/v8py
 install:
   - git clone https://github.com/anthill-platform/anthill-common $TRAVIS_BUILD_DIR/common
-  - pip install -r $TRAVIS_BUILD_DIR/common/src/requirements.txt
-  - pip install -r src/requirements.txt
+  - pip install -r $TRAVIS_BUILD_DIR/common/requirements.txt
+  - pip install -r requirements.txt
 script:
-  - python -m common.testing
+  - python -m anthill.common.testing

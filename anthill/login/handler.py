@@ -36,7 +36,7 @@ class AttachAccountHandler(JsonHandler):
     async def post(self):
         arguments = {
             key: value[0]
-            for key, value in self.request.arguments.iteritems()
+            for key, value in self.request.arguments.items()
         }
 
         try:
@@ -187,7 +187,7 @@ class AuthAuthenticationHandler(AuthenticatedHandler):
 
         social_apis = [
             name
-            for name, authorizer in credential_types.iteritems()
+            for name, authorizer in credential_types.items()
             if isinstance(authorizer, SocialAuthenticator)
         ]
 
@@ -534,7 +534,7 @@ class ResolveConflictHandler(AuthenticatedHandler):
         # get POST arguments into a dict
         arguments = {
             key: value[0]
-            for key, value in self.request.arguments.iteritems()
+            for key, value in self.request.arguments.items()
         }
 
         try:

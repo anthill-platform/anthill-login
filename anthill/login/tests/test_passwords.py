@@ -21,7 +21,6 @@ class PasswordsTestCase(ServerTestCase):
 
     @gen_test
     async def test_format(self):
-
         # check without credential type
         with self.assertRaises(BadNameFormat):
             await self.application.passwords.create("singleword", "-")
@@ -67,7 +66,6 @@ class PasswordsTestCase(ServerTestCase):
 
     @gen_test
     async def test_password(self):
-
         async with self.test_db.acquire() as db:
             for t in range(1, 10):
 
