@@ -43,7 +43,7 @@ def encode(secret, decoded_value):
     if not secret:
         return decoded_value
 
-    cipher = AES.new(secret)
+    cipher = AES.new(secret.encode(), AES.MODE_ECB)
     return base64.b64encode(
         cipher.encrypt(
             add_pad(decoded_value)))
@@ -53,7 +53,7 @@ def decode(secret, encoded_value):
     if not secret:
         return encoded_value
 
-    cipher = AES.new(secret)
+    cipher = AES.new(secret.encode(), AES.MODE_ECB)
     return cipher.decrypt(base64.b64decode(encoded_value)).decode("utf-8").rstrip(PADDING)
 
 
