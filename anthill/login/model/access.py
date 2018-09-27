@@ -28,7 +28,7 @@ class AccessModel(Model):
                                             "config_admin,store_admin,event_admin,game_admin,dlc_admin,"
                                             "message_admin,env_envs_admin,env_admin,leaderboard_admin,"
                                             "exec_admin,auth_gamespace_admin,game_deploy_admin,auth_gamespace_admin,"
-                                            "static_admin,promo_admin,report_admin")
+                                            "static_admin,promo_admin,report_admin,admin_audit_log")
 
     def get_setup_db(self):
         return self.db

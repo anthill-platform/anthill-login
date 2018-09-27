@@ -144,7 +144,7 @@ class EditAccountController(a.AdminController):
         result["tokens"] = {
             uuid: {
                 "name": token["name"],
-                "ttl": "{:0>8}".format(datetime.timedelta(seconds=token["ttl"]))
+                "ttl": "{!s:0>8}".format(datetime.timedelta(seconds=token["ttl"]))
             }
             for uuid, token in uuids.items()
         }

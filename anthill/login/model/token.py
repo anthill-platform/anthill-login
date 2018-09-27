@@ -103,8 +103,7 @@ class AccessTokenModel(Model, AccessTokenCache):
         return new_data
 
     async def get_uuids(self, account):
-        db = self.kv.acquire()
-        try:
+        async with self.kv.acquire() as db:
             account_key = "account:" + str(account)
             uuids = await db.hgetall(account_key, encoding="utf-8")
             result = {}
@@ -118,8 +117,6 @@ class AccessTokenModel(Model, AccessTokenCache):
                     }
                 else:
                     await db.hdel(account_key, uuid)
-        finally:
-            await db.release()
 
         return result
 
