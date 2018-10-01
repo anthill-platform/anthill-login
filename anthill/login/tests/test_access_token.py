@@ -151,7 +151,7 @@ jqhNID78KIZf+tf5oTHtwG/QsZEAE/ClmCoBL4+VILE=
     async def test_expiration(self):
         token = await self.generate_access_token(["test_a", "test_b"], max_time=1)
         self.assertTrue((await self.application.tokens.validate(token)), "Generated access token is not valid")
-        await sleep(1)
+        await sleep(2)
         self.assertFalse((await self.application.tokens.validate(token)),
                          "Access token should not be valid at that point")
 

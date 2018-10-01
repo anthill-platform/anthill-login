@@ -1,16 +1,6 @@
 language: python
 python:
-  - "3.7"
-matrix:
-  include:
-    - python: 3.7
-      dist: xenial
-      sudo: true
-virtualenv:
-    system_site_package: true
-env:
-  global:
-    - PYTHONPATH=$PYTHONPATH:$TRAVIS_BUILD_DIR/common
+  - 3.5
 addons:
   apt:
     sources:
@@ -25,9 +15,6 @@ services:
   - mysql
   - redis-server
   - rabbitmq
-cache:
-  directories:
-   - $TRAVIS_BUILD_DIR/v8py
 install:
 - git clone https://github.com/anthill-platform/anthill-common $TRAVIS_BUILD_DIR/common
 - python $TRAVIS_BUILD_DIR/common/setup.py install
