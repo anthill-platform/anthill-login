@@ -14,6 +14,10 @@ setup(
     author_email='desertkun@gmail.com',
     url='https://github.com/anthill-platform/anthill-login',
     namespace_packages=["anthill"],
+    include_package_data=True,
+    package_data={
+      "anthill.login": ["anthill/login/sql", "anthill/login/static"]
+    },
     packages=find_packages(),
     zip_safe=False,
     install_requires=DEPENDENCIES
