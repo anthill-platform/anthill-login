@@ -31,6 +31,6 @@ cache:
 install:
 - git clone https://github.com/anthill-platform/anthill-common $TRAVIS_BUILD_DIR/common
 - python $TRAVIS_BUILD_DIR/common/setup.py install
-- python setup.py sdist
+- python setup.py install
 script:
   - python -m anthill.common.testing

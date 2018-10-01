@@ -2,12 +2,13 @@
 from setuptools import setup, find_packages
 
 DEPENDENCIES = [
-    "anthill-common>=0.1.0"
+    "anthill-common"
 ]
 
 setup(
     name='anthill-login',
-    version='0.1.0',
+    setup_requires=["pypigit-version"],
+    git_version="0.1.0",
     description='An authentication service for Anthill platform',
     author='desertkun',
     license='MIT',
