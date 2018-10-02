@@ -7,6 +7,9 @@ addons:
       - mysql-5.7-trusty
     packages:
       - mysql-server
+env:
+  global:
+    - PYTHONPATH=$PYTHONPATH:$TRAVIS_BUILD_DIR/common
 dist: trusty
 sudo: required
 before_install:
