@@ -1,6 +1,6 @@
 # Login Service 
 
-[![Build Status](https://travis-ci.org/anthill-platform/anthill-login.svg?branch=master)](https://travis-ci.org/anthill-platform/anthill-login)
+[![Build Status](https://travis-ci.org/anthill-platform/anthill-login.svg)](https://travis-ci.org/anthill-platform/anthill-login)
 ![PyPI license](https://img.shields.io/pypi/l/ansicolortags.svg)
 ![PyPI pyversions](https://img.shields.io/badge/python-3.5-blue.svg)
 
