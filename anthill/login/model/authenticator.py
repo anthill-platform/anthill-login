@@ -5,13 +5,11 @@ from . password import UserNotFound, BadPassword, BadNameFormat
 import abc
 
 
-class Authenticator(Model):
+class Authenticator(Model, metaclass=abc.ABCMeta):
 
     """
     An abstract class that able to prove that user owns the credential <credential>.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, application, credential_type):
         self.application = application
