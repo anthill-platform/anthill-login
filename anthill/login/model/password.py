@@ -24,9 +24,9 @@ class PasswordsModel(Model):
             hmac.new(key=bytes(c + salt, "utf-8"), msg=password.encode("utf-8"),
                      digestmod=hashlib.sha256).digest()).decode(),
         "2SHA256": lambda c, password, salt: hashlib.sha256(
-            hashlib.sha256(password + salt).hexdigest()).hexdigest(),
+            hashlib.sha256(bytes(password + salt, "utf-8")).hexdigest()).hexdigest(),
         "SHA256": lambda c, password, salt: hashlib.sha256(
-            password).hexdigest()
+            bytes(password, "utf-8")).hexdigest()
     }
     DEFAULT_ALGORITHM = "HMACSHA256"
 
