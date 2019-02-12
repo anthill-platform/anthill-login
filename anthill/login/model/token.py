@@ -201,7 +201,10 @@ class AccessTokenModel(Model, AccessTokenCache):
                 names_key = "names:" + str(token.account)
                 await db.hdel(names_key, name)
 
-        return token.account == account_db
+            return False
+
+        # keyvalue storage returns bytes, we have strings
+        return token.account == account_db.encode()
 
 
 class TokensError(Exception):
