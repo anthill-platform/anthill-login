@@ -1,2 +1,3 @@
 graft anthill/login/sql
 graft anthill/login/static
+graft anthill/login/template
