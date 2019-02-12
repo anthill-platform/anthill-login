@@ -200,11 +200,9 @@ class AccessTokenModel(Model, AccessTokenCache):
             if deleted and name:
                 names_key = "names:" + str(token.account)
                 await db.hdel(names_key, name)
-
             return False
 
-        # keyvalue storage returns bytes, we have strings
-        return token.account == account_db.encode()
+        return token.account == account_db
 
 
 class TokensError(Exception):
