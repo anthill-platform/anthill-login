@@ -8,7 +8,7 @@ DEPENDENCIES = [
 setup(
     name='anthill-login',
     package_data={
-      "anthill.login": ["anthill/login/sql", "anthill/login/static"]
+      "anthill.login": ["anthill/login/sql", "anthill/login/static", "anthill/login/template"]
     },
     setup_requires=["pypigit-version"],
     git_version="0.1.0",
