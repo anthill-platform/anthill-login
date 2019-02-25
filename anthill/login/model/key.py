@@ -43,10 +43,10 @@ def encode(secret, decoded_value):
     if not secret:
         return decoded_value
 
-    cipher = AES.new(secret.encode(), AES.MODE_ECB)
-    return base64.b64encode(
-        cipher.encrypt(
-            add_pad(decoded_value)))
+    cipher = AES.new(secret.encode("utf8"), AES.MODE_ECB)
+    pad = add_pad(decoded_value)
+    encrypted = cipher.encrypt(pad.encode())
+    return base64.b64encode(encrypted)
 
 
 def decode(secret, encoded_value):
@@ -54,7 +54,9 @@ def decode(secret, encoded_value):
         return encoded_value
 
     cipher = AES.new(secret.encode(), AES.MODE_ECB)
-    return cipher.decrypt(base64.b64decode(encoded_value)).decode("utf-8").rstrip(PADDING)
+    b64decoded = base64.b64decode(encoded_value)
+    decrypted = cipher.decrypt(b64decoded).decode("utf-8")
+    return decrypted.rstrip(PADDING)
 
 
 class KeyModel(Model):

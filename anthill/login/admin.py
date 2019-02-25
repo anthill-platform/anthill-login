@@ -427,16 +427,16 @@ class EditKeyController(a.AdminController):
                 if private_key.has_ui():
                     private_key_data = private_key.get()
 
-                    raise a.Return({
+                    return {
                         "key_name": key_name,
                         "private_key": private_key,
                         "private_key_data": private_key_data
-                    })
+                    }
 
-        raise a.Return({
+        return {
             "key_name": key_name,
             "key_data": key_data
-        })
+        }
 
     def render(self, data):
 
@@ -789,9 +789,9 @@ class KeyController(a.AdminController):
         except KeyNotFound:
             raise a.ActionError("No such key")
 
-        raise a.Return({
+        return {
             "key_name": key.name
-        })
+        }
 
     def render(self, data):
         return [
@@ -839,9 +839,9 @@ class KeysController(a.AdminController):
 
         key_list = await keys.list_keys(self.gamespace)
 
-        raise a.Return({
+        return {
             "keys": key_list
-        })
+        }
 
     def render(self, data):
         return [
