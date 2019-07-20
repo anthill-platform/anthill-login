@@ -317,8 +317,8 @@ class EditCredentialController(a.AdminController):
             raise a.ActionError("Credential format is invalid")
 
         try:
-            credentials.detach(credential, account)
-            credentials.attach(credential, moveto)
+            await credentials.detach(credential, account)
+            await credentials.attach(credential, moveto)
         except CredentialError as e:
             raise a.ActionError(e.message)
 
@@ -341,8 +341,8 @@ class EditCredentialController(a.AdminController):
             raise a.ActionError("Credential format is invalid")
 
         try:
-            credentials.detach(credential, account)
-            credentials.attach(credential, moveto)
+            await credentials.detach(credential, account)
+            await credentials.attach(credential, moveto)
         except CredentialError as e:
             raise a.ActionError(e.message)
 
