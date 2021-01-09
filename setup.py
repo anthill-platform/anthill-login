@@ -2,7 +2,7 @@
 from setuptools import setup, find_namespace_packages
 
 DEPENDENCIES = [
-    "anthill-common>=0.2.4"
+    "anthill-common>=0.2.5"
 ]
 
 setup(
