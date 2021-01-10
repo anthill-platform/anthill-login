@@ -114,3 +114,13 @@ define("passwords_salt",
        help="A salt to the passwords stored in the database. Once set should never be changed, "
             "or the users will lost their accounts.",
        type=str)
+
+define("root_user_name",
+       default="root",
+       help="Username for default first user with superuser access",
+       type=str)
+
+define("root_user_password",
+       default="anthill",
+       help="Password for root user",
+       type=str)

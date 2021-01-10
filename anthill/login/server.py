@@ -35,11 +35,15 @@ class AuthServer(server.Server):
             db=options.cache_db,
             max_connections=options.cache_max_connections)
 
+        root_user_name = options.root_user_name
+        root_user_password = options.root_user_password
+
         self.keys = KeyModel(self.db)
         self.access = AccessModel(self.db)
-        self.credentials = CredentialModel(self, self.db)
+        self.credentials = CredentialModel(self, self.db, root_user_name=root_user_name)
         self.accounts = AccountModel(self, self.db)
-        self.passwords = PasswordsModel(self, self.db)
+        self.passwords = PasswordsModel(
+            self, self.db, root_user_name=root_user_name, root_user_password=root_user_password)
         self.gamespaces = GamespacesModel(self.db, [self.access, self.keys])
 
     def get_models(self):

@@ -33,10 +33,12 @@ class PasswordsModel(Model):
     def __generate_password__(self, credential, algorithm, password):
         return PasswordsModel.ALGORITHMS[algorithm](credential, password, self.salt)
 
-    def __init__(self, application, db):
+    def __init__(self, application, db, root_user_name, root_user_password):
         self.db = db
         self.app = application
         self.salt = options.passwords_salt or ""
+        self.root_user_name = root_user_name
+        self.root_user_password = root_user_password
 
     def get_setup_tables(self):
         return ["credential_passwords"]
@@ -45,7 +47,7 @@ class PasswordsModel(Model):
         return self.db
 
     async def setup_table_credential_passwords(self):
-        await self.create("dev:root", "anthill")
+        await self.create("dev:{0}".format(self.root_user_name), self.root_user_password)
 
     async def update(self, username, password, db=None):
         """

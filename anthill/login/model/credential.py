@@ -27,9 +27,10 @@ class CredentialModel(Model):
 
     Credential is just a way for user to authorize. After that user works with account.
     """
-    def __init__(self, application, db):
+    def __init__(self, application, db, root_user_name):
         self.db = db
         self.credential_types = {}
+        self.root_user_name = root_user_name
 
         self.init(application)
 
@@ -37,7 +38,7 @@ class CredentialModel(Model):
         return ["account_credentials"]
 
     async def setup_table_account_credentials(self):
-        await self.attach("dev:root", 1)
+        await self.attach("dev:{0}".format(self.root_user_name), 1)
 
     def get_setup_db(self):
         return self.db
